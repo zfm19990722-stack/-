@@ -1,0 +1,8 @@
+{
+  "name": "4.0公主风舒适奢华显化手帐",
+  "description": "一款公主风舒适奢华的显化APP。包含梦幻愿望清单、每日暖心正向暗示，支持自定义冥想背景音乐与高画质可视化漫天星辰花海背景。并结合 Gemini 智能声学 TTS 技术，通过温柔、深沉的女声进行沉浸式暗示语朗读，引导您进入深度专注的显化磁场。",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
