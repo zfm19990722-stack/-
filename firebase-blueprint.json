@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile with sync preferences and metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique user ID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "photoURL": { "type": "string", "description": "User avatar photo URL" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of account creation" },
+        "lastLoginAt": { "type": "string", "description": "ISO timestamp of last sign in" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last update" }
+      },
+      "required": ["id", "createdAt"]
+    },
+    "Wish": {
+      "title": "Manifestation Wish",
+      "description": "User's manifestation wish document in cloud storage",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique wish ID" },
+        "userId": { "type": "string", "description": "Owner user ID" },
+        "title": { "type": "string", "description": "Wish title" },
+        "category": { "type": "string", "enum": ["love", "wealth", "beauty", "career", "lifestyle"] },
+        "details": { "type": "string", "description": "Initial wish description" },
+        "visualizationDetails": { "type": "string", "description": "AI sensory imagery in Chinese" },
+        "visualizationDetailsEn": { "type": "string", "description": "AI sensory imagery in English" },
+        "isManifested": { "type": "boolean", "description": "Whether the wish is manifested" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Update timestamp" }
+      },
+      "required": ["id", "title", "category", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "entity": "User",
+      "description": "User profile document"
+    },
+    "/users/{userId}/wishes/{wishId}": {
+      "entity": "Wish",
+      "description": "Individual wish items belonging to the user"
+    }
+  }
+}

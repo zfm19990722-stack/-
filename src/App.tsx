@@ -1,4 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from './firebase';
+import {
+  subscribeToUserWishes,
+  syncSaveWish,
+  syncDeleteWish,
+  syncUpdateWish,
+  mergeLocalWishesToCloud,
+  SyncState
+} from './services/wishSyncService';
+import UserAuthModal from './components/UserAuthModal';
+import UserSyncBar from './components/UserSyncBar';
 import { Wish, MusicTrack, VisualBackground, VisualBackgroundType } from './types';
 import VisualizationBackground from './components/VisualizationBackground';
 import AudioPlayer from './components/AudioPlayer';
@@ -148,11 +160,17 @@ export default function App() {
     { id: 'box-4-6-4-6', name: language === 'en' ? 'Deep Relaxation' : '方盒深层呼吸', code: '4-6-4-6', type: 'box', inhale: 4, holdIn: 6, exhale: 4, holdOut: 6, desc: language === 'en' ? 'Deep release, let go of pressure' : '深沉放松，放空压力' },
     { id: 'box-4-8-4-8', name: language === 'en' ? 'Transcendental Flow' : '方盒超频呼吸', code: '4-8-4-8', type: 'box', inhale: 4, holdIn: 8, exhale: 4, holdOut: 8, desc: language === 'en' ? 'Ignite potential, raise consciousness' : '激发潜能，意识升华' },
     { id: 'rebirthing', name: language === 'en' ? 'Rebirthing Breath' : '重生呼吸法', code: '2-0-2-0', type: 'circular', inhale: 2, holdIn: 0, exhale: 2, holdOut: 0, desc: language === 'en' ? 'Continuous circular flow, release subconscious blockages' : '连贯循环呼吸，不带停顿，释放深层创伤与潜意识束缚' },
-    { id: 'sohum', name: language === 'en' ? 'So-Hum Breath' : 'SoHum 呼吸法', code: '4-0-4-0', type: 'mantra', inhale: 4, holdIn: 0, exhale: 4, holdOut: 0, desc: language === 'en' ? 'Dr. Young’s SoHum wisdom: "So" on inhale, "Hum" on exhale' : '杨定一博士推荐：吸气默念"So"（彼），呼气默念"Hum"（我），契合大自然律动' },
+    { id: 'sohum', name: language === 'en' ? 'SOHUM Resonance' : 'SoHum 律动呼吸', code: '1分6次->1分5次', type: 'mantra', inhale: 5, holdIn: 0, exhale: 5, holdOut: 0, desc: language === 'en' ? 'Dr. Jan: 1 min 6 breaths (5s So / 5s Hum) -> 1 min 5 breaths (6s So / 6s Hum)' : '杨定一博士推荐：第1分钟6次(5s So吸/5s Hum呼)，第2分钟5次(6s So吸/6s Hum呼)，深层同频宇宙律动' },
   ];
   const [selectedPatternId, setSelectedPatternId] = useState<string>('classic-4-4-4');
   const [breathingText, setBreathingText] = useState<string>('吸气...');
   const [breathingPhase, setBreathingPhase] = useState<'inhale' | 'holdIn' | 'exhale' | 'holdOut'>('inhale');
+
+  // SOHUM Advanced Staged Flow states (1分6次 -> 1分5次)
+  const [sohumStageMode, setSohumStageMode] = useState<'auto' | 'stage1' | 'stage2'>('auto');
+  const [sohumCurrentStage, setSohumCurrentStage] = useState<1 | 2>(1);
+  const [sohumCycleCount, setSohumCycleCount] = useState<number>(1);
+  const [sohumElapsedSeconds, setSohumElapsedSeconds] = useState<number>(0);
 
   const currentPattern = breathingPatterns.find(p => p.id === selectedPatternId) || breathingPatterns[0];
 
@@ -179,39 +197,95 @@ export default function App() {
   const activeGainNodeRef = useRef<GainNode | null>(null);
   const currentSpeechSourceRef = useRef<AudioBufferSourceNode | null>(null);
 
-  // Load wishes from localStorage
+  // Cloud Sync & User Authentication state
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [syncState, setSyncState] = useState<SyncState>('offline');
+
+  // Firebase Auth State Listener & Firestore Real-Time Sync
   useEffect(() => {
-    const saved = localStorage.getItem('princess_manifestation_wishes');
-    if (saved) {
-      try {
-        setWishes(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to parse saved wishes:', e);
+    let unsubscribeWishes: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+
+      if (currentUser) {
+        setSyncState('syncing');
+
+        // Migrate/merge any existing local wishes into cloud collection
+        const localSaved = localStorage.getItem('princess_manifestation_wishes');
+        if (localSaved) {
+          try {
+            const localWishes: Wish[] = JSON.parse(localSaved);
+            if (localWishes.length > 0) {
+              await mergeLocalWishesToCloud(currentUser.uid, localWishes);
+            }
+          } catch (e) {
+            console.error('Error merging local wishes to cloud:', e);
+          }
+        }
+
+        // Subscribe to real-time updates from Firestore
+        if (unsubscribeWishes) unsubscribeWishes();
+        unsubscribeWishes = subscribeToUserWishes(
+          currentUser.uid,
+          (cloudWishes) => {
+            if (cloudWishes && cloudWishes.length > 0) {
+              setWishes(cloudWishes);
+              localStorage.setItem('princess_manifestation_wishes', JSON.stringify(cloudWishes));
+            }
+            setSyncState('synced');
+          },
+          (err) => {
+            console.error('Firestore subscribe error:', err);
+            setSyncState('error');
+          }
+        );
+      } else {
+        // Guest mode: load from localStorage
+        setSyncState('offline');
+        if (unsubscribeWishes) {
+          unsubscribeWishes();
+          unsubscribeWishes = null;
+        }
+        const saved = localStorage.getItem('princess_manifestation_wishes');
+        if (saved) {
+          try {
+            setWishes(JSON.parse(saved));
+          } catch (e) {
+            console.error('Failed to parse saved wishes:', e);
+          }
+        } else {
+          // Seed with sample wish
+          const sampleWish: Wish = {
+            id: 'sample-1',
+            title: '在白玫瑰环绕的花园露台享用英式下午茶',
+            category: 'lifestyle',
+            details: '想要有一个阳光明媚的下午，周围开满了清香的白玫瑰。桌上有精美的描金瓷器，摆满司康和慕斯。微风轻拂裙摆，内心只有平静、高贵与深深的满足。',
+            visualizationDetails: '晨曦如薄纱般温柔地披在你的天鹅绒睡裙上，空气里氤氲着栀子花与刚采摘的玫瑰清香。你轻轻落座于铺满繁复蕾丝的露台前，捧起描绘着细腻金边的大吉岭红茶。银器在暖阳下折射出优雅璀璨的华光。在这一刻，世俗的喧嚣与焦虑尽数消散，宇宙无限的宠爱与丰盛正如同这温暖的和风，毫无保留地涌入你的生命，你的身心已被彻底的尊贵、富足与深度安宁所包裹。',
+            visualizationDetailsEn: '【Visual Scene】\nGentle morning light softly caresses your velvet dress as the air drifts with the scent of gardenias and freshly-picked white roses. You sit before the rose terrace, holding a fine-rimmed porcelain cup of Darjeeling tea as the silver tableware glimmers in the sun.\n\n【Acoustics & Aroma】\nThe gentle whisper of the breeze through the roses harmonizes with the soft chime of distant bells. The steam of tea rises with a tranquil rose aroma.\n\n【Body & Mind Energy】\nIn this sacred moment, all secular worries completely fade. You are surrounded by the deep, warm, and loving protective field of the universe, feeling infinitely cherished, secure, and profoundly rich.',
+            isManifested: false,
+            createdAt: new Date().toISOString(),
+          };
+          setWishes([sampleWish]);
+          localStorage.setItem('princess_manifestation_wishes', JSON.stringify([sampleWish]));
+        }
       }
-    } else {
-      // Seed with sample wish
-      const sampleWish: Wish = {
-        id: 'sample-1',
-        title: '在白玫瑰环绕的花园露台享用英式下午茶',
-        category: 'lifestyle',
-        details: '想要有一个阳光明媚的下午，周围开满了清香的白玫瑰。桌上有精美的描金瓷器，摆满司康和慕斯。微风轻拂裙摆，内心只有平静、高贵与深深的满足。',
-        visualizationDetails: '晨曦如薄纱般温柔地披在你的天鹅绒睡裙上，空气里氤氲着栀子花与刚采摘的玫瑰清香。你轻轻落座于铺满繁复蕾丝的露台前，捧起描绘着细腻金边的大吉岭红茶。银器在暖阳下折射出优雅璀璨的华光。在这一刻，世俗的喧嚣与焦虑尽数消散，宇宙无限的宠爱与丰盛正如同这温暖的和风，毫无保留地涌入你的生命，你的身心已被彻底的尊贵、富足与深度安宁所包裹。',
-        visualizationDetailsEn: '【Visual Scene】\nGentle morning light softly caresses your velvet dress as the air drifts with the scent of gardenias and freshly-picked white roses. You sit before the rose terrace, holding a fine-rimmed porcelain cup of Darjeeling tea as the silver tableware glimmers in the sun.\n\n【Acoustics & Aroma】\nThe gentle whisper of the breeze through the roses harmonizes with the soft chime of distant bells. The steam of tea rises with a tranquil rose aroma.\n\n【Body & Mind Energy】\nIn this sacred moment, all secular worries completely fade. You are surrounded by the deep, warm, and loving protective field of the universe, feeling infinitely cherished, secure, and profoundly rich.',
-        isManifested: false,
-        createdAt: new Date().toISOString(),
-      };
-      setWishes([sampleWish]);
-      localStorage.setItem('princess_manifestation_wishes', JSON.stringify([sampleWish]));
-    }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeWishes) unsubscribeWishes();
+    };
   }, []);
 
-  // Save wishes
+  // Save wishes helper with Cloud Sync
   const saveWishesToStorage = (newWishes: Wish[]) => {
     setWishes(newWishes);
     localStorage.setItem('princess_manifestation_wishes', JSON.stringify(newWishes));
   };
 
-  const handleAddWish = (newWish: Omit<Wish, 'id' | 'createdAt' | 'isManifested'>) => {
+  const handleAddWish = async (newWish: Omit<Wish, 'id' | 'createdAt' | 'isManifested'>) => {
     const wish: Wish = {
       ...newWish,
       id: `wish-${Date.now()}`,
@@ -220,13 +294,52 @@ export default function App() {
     };
     const updated = [wish, ...wishes];
     saveWishesToStorage(updated);
+
+    // Sync to Cloud Firestore if logged in
+    if (user) {
+      setSyncState('syncing');
+      try {
+        await syncSaveWish(user.uid, wish);
+        setSyncState('synced');
+      } catch (err) {
+        console.error('Failed to sync new wish to cloud:', err);
+        setSyncState('error');
+      }
+    }
   };
 
-  const handleDeleteWish = (id: string) => {
+  const handleDeleteWish = async (id: string) => {
     const filtered = wishes.filter(w => w.id !== id);
     saveWishesToStorage(filtered);
     if (activeWishSession?.id === id) {
       handleExitManifestationSession();
+    }
+
+    // Delete from Cloud Firestore if logged in
+    if (user) {
+      setSyncState('syncing');
+      try {
+        await syncDeleteWish(user.uid, id);
+        setSyncState('synced');
+      } catch (err) {
+        console.error('Failed to delete wish from cloud:', err);
+        setSyncState('error');
+      }
+    }
+  };
+
+  const handleManualSync = async () => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setSyncState('syncing');
+    try {
+      await mergeLocalWishesToCloud(user.uid, wishes);
+      setSyncState('synced');
+    } catch (e) {
+      console.error('Manual sync error:', e);
+      setSyncState('error');
     }
   };
 
@@ -281,11 +394,21 @@ export default function App() {
               : result.visualizationTextEn;
           }
 
-          return {
+          const updatedWish = {
             ...w,
             visualizationDetails: nextDetails,
             visualizationDetailsEn: nextDetailsEn,
           };
+
+          // Sync to Cloud if logged in
+          if (user) {
+            syncUpdateWish(user.uid, id, {
+              visualizationDetails: nextDetails,
+              visualizationDetailsEn: nextDetailsEn,
+            }).catch(e => console.error('Cloud update error on generate:', e));
+          }
+
+          return updatedWish;
         }
         return w;
       });
@@ -307,6 +430,12 @@ export default function App() {
       return w;
     });
     saveWishesToStorage(updatedWishes);
+
+    if (user) {
+      syncUpdateWish(user.uid, id, updatedFields).catch(e =>
+        console.error('Cloud update error:', e)
+      );
+    }
   };
 
   // Text-To-Speech Playback
@@ -681,12 +810,40 @@ export default function App() {
     if (!activeWishSession) return;
 
     const pattern = breathingPatterns.find(p => p.id === selectedPatternId) || breathingPatterns[0];
+    const isSohum = pattern.id === 'sohum';
 
-    const getPhaseText = (phase: 'inhale' | 'holdIn' | 'exhale' | 'holdOut') => {
+    // Local tracking variables inside closure
+    let localSohumStage: 1 | 2 = sohumStageMode === 'stage2' ? 2 : 1;
+    let localCycleCount = 1;
+    let localElapsedSeconds = 0;
+
+    setSohumCurrentStage(localSohumStage);
+    setSohumCycleCount(1);
+    setSohumElapsedSeconds(0);
+
+    const getInhaleTime = () => {
+      if (isSohum) return localSohumStage === 1 ? 5 : 6;
+      return pattern.inhale;
+    };
+
+    const getExhaleTime = () => {
+      if (isSohum) return localSohumStage === 1 ? 5 : 6;
+      return pattern.exhale;
+    };
+
+    const getPhaseText = (phase: 'inhale' | 'holdIn' | 'exhale' | 'holdOut', stage: 1 | 2 = localSohumStage) => {
       const isEn = language === 'en';
       if (pattern.id === 'sohum') {
-        if (phase === 'inhale') return isEn ? 'So (Inhale)...' : 'So (吸气)...';
-        if (phase === 'exhale') return isEn ? 'Hum (Exhale)...' : 'Hum (呼气)...';
+        if (phase === 'inhale') {
+          return isEn 
+            ? (stage === 1 ? 'So (Inhale • 5s)' : 'So (Inhale • 6s)') 
+            : (stage === 1 ? 'So (吸气 · 连系源头 5s)' : 'So (吸气 · 深入原初 6s)');
+        }
+        if (phase === 'exhale') {
+          return isEn 
+            ? (stage === 1 ? 'Hum (Exhale • 5s)' : 'Hum (Exhale • 6s)') 
+            : (stage === 1 ? 'Hum (呼气 · 回归本我 5s)' : 'Hum (呼气 · 大我安歇 6s)');
+        }
       } else if (pattern.id === 'rebirthing') {
         if (phase === 'inhale') return isEn ? 'Continuous Inhale...' : '连贯吸气...';
         if (phase === 'exhale') return isEn ? 'Passive Release...' : '放手呼气...';
@@ -699,21 +856,23 @@ export default function App() {
       return '';
     };
 
-    // Reset to start state
-    setBreathingCountdown(pattern.inhale);
+    const initialInhale = getInhaleTime();
+    setBreathingCountdown(initialInhale);
     setBreathingPhase('inhale');
-    setBreathingText(getPhaseText('inhale'));
+    setBreathingText(getPhaseText('inhale', localSohumStage));
     playBreathingPhaseSound('inhale');
 
-    // Keep track of current states locally within the closure to avoid batching or execution delay issues with React state hooks
     let currentPhase: 'inhale' | 'holdIn' | 'exhale' | 'holdOut' = 'inhale';
-    let currentCountdown = pattern.inhale;
+    let currentCountdown = initialInhale;
 
     const interval = setInterval(() => {
+      localElapsedSeconds++;
+      setSohumElapsedSeconds(localElapsedSeconds);
+
       currentCountdown--;
       if (currentCountdown <= 0) {
         if (currentPhase === 'inhale') {
-          if (pattern.holdIn > 0) {
+          if (pattern.holdIn > 0 && !isSohum) {
             currentPhase = 'holdIn';
             currentCountdown = pattern.holdIn;
             setBreathingPhase('holdIn');
@@ -721,36 +880,52 @@ export default function App() {
             playBreathingPhaseSound('holdIn');
           } else {
             currentPhase = 'exhale';
-            currentCountdown = pattern.exhale;
+            currentCountdown = getExhaleTime();
             setBreathingPhase('exhale');
-            setBreathingText(getPhaseText('exhale'));
+            setBreathingText(getPhaseText('exhale', localSohumStage));
             playBreathingPhaseSound('exhale');
           }
         } else if (currentPhase === 'holdIn') {
           currentPhase = 'exhale';
-          currentCountdown = pattern.exhale;
+          currentCountdown = getExhaleTime();
           setBreathingPhase('exhale');
-          setBreathingText(getPhaseText('exhale'));
+          setBreathingText(getPhaseText('exhale', localSohumStage));
           playBreathingPhaseSound('exhale');
         } else if (currentPhase === 'exhale') {
-          if (pattern.holdOut > 0) {
+          if (pattern.holdOut > 0 && !isSohum) {
             currentPhase = 'holdOut';
             currentCountdown = pattern.holdOut;
             setBreathingPhase('holdOut');
             setBreathingText(getPhaseText('holdOut'));
             playBreathingPhaseSound('holdOut');
           } else {
+            // Completed 1 full breath cycle
+            localCycleCount++;
+            setSohumCycleCount(localCycleCount);
+
+            // Handle SOHUM auto-stage transition (1 min 6 times -> 1 min 5 times)
+            if (isSohum && sohumStageMode === 'auto' && localSohumStage === 1) {
+              // 6 cycles of 10s = 60s
+              if (localElapsedSeconds >= 58 || localCycleCount > 6) {
+                localSohumStage = 2;
+                setSohumCurrentStage(2);
+              }
+            }
+
             currentPhase = 'inhale';
-            currentCountdown = pattern.inhale;
+            currentCountdown = getInhaleTime();
             setBreathingPhase('inhale');
-            setBreathingText(getPhaseText('inhale'));
+            setBreathingText(getPhaseText('inhale', localSohumStage));
             playBreathingPhaseSound('inhale');
           }
         } else if (currentPhase === 'holdOut') {
+          localCycleCount++;
+          setSohumCycleCount(localCycleCount);
+
           currentPhase = 'inhale';
-          currentCountdown = pattern.inhale;
+          currentCountdown = getInhaleTime();
           setBreathingPhase('inhale');
-          setBreathingText(getPhaseText('inhale'));
+          setBreathingText(getPhaseText('inhale', localSohumStage));
           playBreathingPhaseSound('inhale');
         }
       }
@@ -758,7 +933,7 @@ export default function App() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [activeWishSession, selectedPatternId, language]);
+  }, [activeWishSession, selectedPatternId, sohumStageMode, language]);
 
   // Start continuous Solfeggio frequency oscillators
   const startSolfeggioSynth = () => {
@@ -1039,26 +1214,22 @@ export default function App() {
 
           <button
             onClick={() => setLanguage(l => l === 'zh' ? 'en' : 'zh')}
-            className="px-3.5 py-1.5 rounded-full text-xs font-sans transition-all duration-300 flex items-center gap-1.5 shadow-sm border bg-white/30 hover:bg-white/55 text-[#8e6d72] border-white/40 font-semibold"
+            className="px-3.5 py-1.5 rounded-full text-xs font-sans transition-all duration-300 flex items-center gap-1.5 shadow-sm border bg-white/30 hover:bg-white/55 text-[#8e6d72] border-white/40 font-semibold cursor-pointer"
             id="language-toggle-btn"
           >
             <span>🌐</span>
             <span>{language === 'zh' ? 'English' : '中文'}</span>
           </button>
 
-          <div className="flex items-center gap-2.5">
-            <div className="flex flex-col text-right hidden sm:flex">
-              <span className="text-xs font-medium text-[#4a3a3a]">
-                {language === 'en' ? 'Always Radiant, My Sanctuary' : '璀璨常伴，我的殿堂'}
-              </span>
-              <span className="text-[10px] text-[#b49196]">
-                {language === 'en' ? 'Wishes manifest in gentle alignment' : '愿望在温柔感应中显化'}
-              </span>
-            </div>
-            <div className="w-9 h-9 rounded-full border border-white bg-white/50 backdrop-blur-md overflow-hidden flex items-center justify-center shadow-sm">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#f8bbd0] to-[#e1bee7]"></div>
-            </div>
-          </div>
+          {/* User Cloud Sync Status & Auth Controls */}
+          <UserSyncBar
+            user={user}
+            syncState={syncState}
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
+            onManualSync={handleManualSync}
+            language={language}
+            wishCount={wishes.length}
+          />
         </div>
       </header>
 
@@ -1263,6 +1434,9 @@ export default function App() {
             <AbundanceWisdomSpace
               language={language}
               onSpeak={handleSpeakText}
+              onAddCustomWish={(title, details, category) => {
+                handleAddWish({ title, details, category });
+              }}
             />
           </div>
 
@@ -1549,7 +1723,7 @@ export default function App() {
               <span className={`text-[10px] uppercase font-bold tracking-widest block text-center ${isBgDark ? 'text-pink-200' : 'text-[#8e6d72]'}`}>
                 {language === 'en' ? '🧘 Select Breathing Rhythm' : '🧘 冥想呼吸律动选择 (Breathing Patterns)'}
               </span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-2xl border backdrop-blur-md bg-white/20 border-white/10">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5 p-1 rounded-2xl border backdrop-blur-md bg-white/20 border-white/10">
                 {breathingPatterns.map((pat) => (
                   <button
                     key={pat.id}
@@ -1559,8 +1733,8 @@ export default function App() {
                     className={`px-2 py-2 rounded-xl text-[10.5px] font-bold transition-all flex flex-col items-center justify-center gap-0.5 text-center cursor-pointer hover:scale-[1.02] active:scale-95 ${
                       selectedPatternId === pat.id
                         ? isBgDark
-                          ? 'bg-white text-[#8e6d72] shadow-md'
-                          : 'bg-[#8e6d72] text-white shadow-md'
+                          ? 'bg-white text-[#8e6d72] shadow-md font-extrabold scale-105'
+                          : 'bg-[#8e6d72] text-white shadow-md font-extrabold scale-105'
                         : isBgDark
                           ? 'text-white hover:bg-white/10'
                           : 'text-[#8e6d72] hover:bg-[#8e6d72]/10'
@@ -1569,10 +1743,50 @@ export default function App() {
                     id={`pattern-btn-${pat.id}`}
                   >
                     <span>{pat.name}</span>
-                    <span className="text-[8.5px] opacity-75 font-mono">({pat.code})</span>
+                    <span className="text-[8px] opacity-75 font-mono truncate max-w-full">({pat.code})</span>
                   </button>
                 ))}
               </div>
+
+              {/* Special SOHUM 1-min 6 times -> 1-min 5 times Staged Controller */}
+              {selectedPatternId === 'sohum' && (
+                <div className={`p-3 rounded-2xl border backdrop-blur-md space-y-2 text-center transition-all ${
+                  isBgDark ? 'bg-amber-950/30 border-amber-400/30 text-amber-200' : 'bg-amber-50/80 border-amber-200/80 text-amber-900'
+                }`}>
+                  <div className="flex flex-wrap items-center justify-center gap-1">
+                    {[
+                      { id: 'auto', label: language === 'en' ? '✨ Auto Staged (6/min ➔ 5/min)' : '✨ 智能阶段递进 (1分6次 ➔ 1分5次)' },
+                      { id: 'stage1', label: language === 'en' ? '🍃 Stage 1: 6/min (5s/5s)' : '🍃 第1阶段: 6次/分 (5s So/5s Hum)' },
+                      { id: 'stage2', label: language === 'en' ? '🌌 Stage 2: 5/min (6s/6s)' : '🌌 第2阶段: 5次/分 (6s So/6s Hum)' },
+                    ].map(mode => (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => setSohumStageMode(mode.id as any)}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
+                          sohumStageMode === mode.id
+                            ? 'bg-amber-600 text-white shadow-xs scale-105'
+                            : 'bg-white/40 text-amber-900/80 hover:bg-white/70'
+                        }`}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Real-time Staged Progress Indicator */}
+                  <div className="flex items-center justify-center gap-2 text-[10.5px] font-mono font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                    <span>
+                      {sohumCurrentStage === 1 
+                        ? (language === 'en' ? `Stage 1: 6 breaths/min (5s/5s) • Breath ${((sohumCycleCount - 1) % 6) + 1}/6` : `当前：第 1 阶段（6次/分 • 5s So吸 / 5s Hum呼 • 第 ${((sohumCycleCount - 1) % 6) + 1}/6 次呼吸）`)
+                        : (language === 'en' ? `Stage 2: 5 breaths/min (6s/6s) • Deep Resonance ${((sohumCycleCount - 1) % 5) + 1}/5` : `当前：第 2 阶段（5次/分 • 6s So吸 / 6s Hum呼 • 第 ${((sohumCycleCount - 1) % 5) + 1}/5 次深度同频）`)
+                      }
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <p className={`text-[10px] text-center italic ${isBgDark ? 'text-pink-200/70' : 'text-[#8e6d72]/70'}`}>
                 ✨ {breathingPatterns.find(p => p.id === selectedPatternId)?.desc}
               </p>
@@ -1673,6 +1887,10 @@ export default function App() {
                     breathingCountdown={breathingCountdown}
                     breathingText={breathingText}
                     isBgDark={isBgDark}
+                    patternType={selectedPatternId}
+                    sohumStage={sohumCurrentStage}
+                    cycleText={selectedPatternId === 'sohum' ? (sohumCurrentStage === 1 ? `第 ${((sohumCycleCount - 1) % 6) + 1} / 6 次呼吸` : `第 ${((sohumCycleCount - 1) % 5) + 1} / 5 次呼吸`) : undefined}
+                    mantraSubtext={selectedPatternId === 'sohum' ? (sohumCurrentStage === 1 ? 'Sah Aham • 我即是彼' : 'Sah Aham • 万物合一') : undefined}
                   />
                   <p className={`text-xs tracking-wide font-medium text-center mt-3 ${isBgDark ? 'text-white/70' : 'text-[#6d5b5e]'}`}>
                     {language === 'en' ? 'Regulate breath, empty thoughts, connect with the cosmic field' : '调匀呼吸，放空思绪，连接宇宙能量场'}
@@ -2185,6 +2403,16 @@ export default function App() {
 
         </div>
       )}
+
+      {/* User Cloud Login / Sync Modal */}
+      <UserAuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        language={language}
+        onLoginSuccess={(loggedInUser) => {
+          setUser(loggedInUser);
+        }}
+      />
 
       {/* Footer credits */}
       <footer className="text-center py-12 text-xs font-mono tracking-wider border-t border-white/30 mt-12 bg-white/15 backdrop-blur-md text-[#8e6d72]">

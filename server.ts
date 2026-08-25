@@ -416,6 +416,84 @@ async function startServer() {
     }
   });
 
+  // 1.8 AI-powered Wei-Shi Mindset Transmutation (唯识转念炼金术) based on Dr. Jan Ding-I
+  app.post("/api/wisdom/alchemize", async (req, res) => {
+    try {
+      const { limitingThought } = req.body;
+      if (!limitingThought || !limitingThought.trim()) {
+        return res.status(400).json({ error: "Limiting thought text is required." });
+      }
+
+      if (!ai) {
+        // High quality offline fallback
+        return res.json({
+          scarcityFilter: "把当下的局限当成了永恒的实体，以为外界的得失定义了自我的价值。",
+          surrenderRelease: "对不起，请原谅我，谢谢你，我爱你。放手不再紧抓抗拒，将所有紧绷交付给整体。",
+          abundanceReality: "你的存在本身就是无限生命最圆满的展现。没有任何外在事物能剥夺或削弱属于你的神圣丰盛。",
+          mantra: "我退后一步，让大我做主。一切都是最好的安排，我本自具足。",
+          quote: "“真正的丰盛不是占有什么，而是认出你本自具足的生命本质。” —— 杨定一《丰盛》",
+          isOffline: true
+        });
+      }
+
+      const prompt = `你是一位深度精通杨定一博士《全部生命系列》（特别是《丰盛》《唯识》《活在当下》《奇迹》）的意识觉醒导师。
+用户提出了一个他们在世俗生活中感到焦虑、匮乏或受困的【限制性信念/匮乏念头】：
+"${limitingThought}"
+
+请基于杨定一博士的「唯识转念」与「全部生命实相」理论，对这一念头进行高维度的剖析与深层转化。
+
+请输出 JSON 格式，严格包含以下 5 个字段：
+1. scarcityFilter: (string) 【小我匮乏幻象与认知滤镜】简明深刻剖析这个念头背后的妄念与执着（约40-60字）。
+2. surrenderRelease: (string) 【承认与臣服心法】指导如何放下抗拒、向生命整体交付与原谅（约40-60字）。
+3. abundanceReality: (string) 【唯识真如丰盛实相】用极其深邃、安抚且赋能的语言，揭示生命无限充盈的本质真相（约60-80字）。
+4. mantra: (string) 【即刻转化真言】一句适合在心中默念的极简强效转念口诀（约15-25字）。
+5. quote: (string) 【杨定一原著智慧金句】对应的一句典藏指引金句。`;
+
+      let responseText = "";
+      try {
+        const response = await safeGenerateContent("gemini-3.1-flash-lite", {
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                scarcityFilter: { type: Type.STRING },
+                surrenderRelease: { type: Type.STRING },
+                abundanceReality: { type: Type.STRING },
+                mantra: { type: Type.STRING },
+                quote: { type: Type.STRING }
+              },
+              required: ["scarcityFilter", "surrenderRelease", "abundanceReality", "mantra", "quote"]
+            }
+          }
+        });
+        if (response && response.text) {
+          responseText = response.text;
+        }
+      } catch (err: any) {
+        console.warn("Alchemize Gemini API attempt failed, using fallback:", err);
+      }
+
+      if (!responseText) {
+        return res.json({
+          scarcityFilter: "小我将局部的暂时现象当成了生命的全部，产生了‘我不够’或‘资源匮乏’的认知错觉。",
+          surrenderRelease: "闭上眼睛，深深呼吸。对自己说：谢谢你，我放下抗拒，全然交托给更高的宇宙智慧。",
+          abundanceReality: "宇宙在每一个瞬间都在无条件地滋养着你。从心底深处认出丰盛，外在的丰足便会自然显化与涌流。",
+          mantra: "我放手，我允许，我在本自圆满的丰盛中安歇。",
+          quote: "“当你退一步，放手并安住在喜悦中，生命自然会为你推开最完美的门扉。” —— 杨定一《丰盛》",
+          isOffline: true
+        });
+      }
+
+      const parsed = JSON.parse(responseText);
+      res.json(parsed);
+    } catch (error: any) {
+      console.error("Wisdom Alchemize Error:", error);
+      res.status(500).json({ error: error.message || "Failed to alchemize mindset." });
+    }
+  });
+
   // 2. Text to Speech API using Gemini TTS
   app.post("/api/tts", async (req, res) => {
     try {

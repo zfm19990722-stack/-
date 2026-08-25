@@ -7,6 +7,10 @@ interface BreathingRingWithParticlesProps {
   breathingText: string;
   isBgDark: boolean;
   language?: 'zh' | 'en';
+  patternType?: string;
+  sohumStage?: 1 | 2;
+  cycleText?: string;
+  mantraSubtext?: string;
 }
 
 // Pre-calculate 24 particle angles to cover a full circle evenly
@@ -19,6 +23,10 @@ export const BreathingRingWithParticles: React.FC<BreathingRingWithParticlesProp
   breathingText,
   isBgDark,
   language = 'zh',
+  patternType,
+  sohumStage,
+  cycleText,
+  mantraSubtext,
 }) => {
   // Map particle index to a constant angle
   const getParticleAngle = (index: number) => {
@@ -180,8 +188,12 @@ export const BreathingRingWithParticles: React.FC<BreathingRingWithParticlesProp
 
       {/* 3. CORE INTERACTIVE BREATHING RING (Guide Circle) */}
       <div
-        className={`w-36 h-36 md:w-40 md:h-40 rounded-full flex items-center justify-center border-2 shadow-2xl relative z-10 transition-all duration-[4000ms] ${
-          breathingPhase === 'inhale' 
+        className={`w-36 h-36 md:w-44 md:h-44 rounded-full flex items-center justify-center border-2 shadow-2xl relative z-10 transition-all duration-[3500ms] ${
+          patternType === 'sohum'
+            ? breathingPhase === 'inhale'
+              ? 'scale-110 border-amber-300 bg-amber-500/25 shadow-amber-300/30'
+              : 'scale-90 border-sky-300 bg-sky-500/20 shadow-sky-300/30'
+            : breathingPhase === 'inhale' 
             ? 'scale-110 border-pink-300 bg-pink-400/20 shadow-pink-300/25' 
             : breathingPhase === 'holdIn' 
             ? 'scale-115 border-amber-300 bg-amber-400/25 shadow-amber-300/40'
@@ -199,37 +211,66 @@ export const BreathingRingWithParticles: React.FC<BreathingRingWithParticlesProp
           breathingPhase === 'holdIn' ? 'opacity-100' : 'opacity-0'
         }`} />
 
-        <div className="text-center z-10 px-2">
+        <div className="text-center z-10 px-2 flex flex-col items-center justify-center">
+          {/* SOHUM Sanskrit Badge when active */}
+          {patternType === 'sohum' && (
+            <span className="text-[9px] tracking-widest text-amber-200/90 font-mono font-semibold uppercase block mb-0.5 animate-pulse">
+              {sohumStage === 1 ? (language === 'en' ? '6 Breaths/Min' : '第1阶段 · 6次/分') : (language === 'en' ? '5 Breaths/Min' : '第2阶段 · 5次/分')}
+            </span>
+          )}
+
           {/* Dynamic state instruction text */}
           <span 
-            className={`text-sm md:text-base font-serif font-bold block tracking-widest transition-all duration-1000 ${
-              breathingPhase === 'inhale' ? 'text-pink-100' :
-              breathingPhase === 'holdIn' ? 'text-amber-100' :
-              breathingPhase === 'exhale' ? 'text-sky-100' : 'text-purple-100'
+            className={`text-sm md:text-base font-serif font-bold block tracking-widest transition-all duration-700 ${
+              patternType === 'sohum'
+                ? breathingPhase === 'inhale' ? 'text-amber-100 drop-shadow-sm' : 'text-sky-100 drop-shadow-sm'
+                : breathingPhase === 'inhale' ? 'text-pink-100' :
+                breathingPhase === 'holdIn' ? 'text-amber-100' :
+                breathingPhase === 'exhale' ? 'text-sky-100' : 'text-purple-100'
             }`}
           >
             {language === 'en' ? (
-              breathingPhase === 'inhale' ? 'Inhale...' :
-              breathingPhase === 'holdIn' ? 'Hold Breath...' :
-              breathingPhase === 'exhale' ? 'Exhale...' : 'Hold Breath...'
+              patternType === 'sohum'
+                ? breathingPhase === 'inhale' ? 'So (Inhale)' : 'Hum (Exhale)'
+                : breathingPhase === 'inhale' ? 'Inhale...' :
+                breathingPhase === 'holdIn' ? 'Hold Breath...' :
+                breathingPhase === 'exhale' ? 'Exhale...' : 'Hold Breath...'
             ) : (
               breathingText
             )}
           </span>
+
+          {/* Mantra Subtext if provided */}
+          {mantraSubtext && (
+            <span className="text-[9px] text-white/80 font-serif italic block mt-0.5 tracking-wider line-clamp-1 max-w-[120px]">
+              {mantraSubtext}
+            </span>
+          )}
           
           {/* Detailed state label and count down */}
           <div className="flex items-center justify-center gap-1 mt-1">
-            <span className={`text-[9px] tracking-wider font-mono font-bold uppercase ${isBgDark ? 'text-white/50' : 'text-[#8e6d72]/60'}`}>
-              {breathingPhase === 'inhale' ? 'Inhale' : breathingPhase === 'holdIn' ? 'Hold In' : breathingPhase === 'exhale' ? 'Exhale' : 'Hold Out'}
+            <span className={`text-[9px] tracking-wider font-mono font-bold uppercase ${isBgDark ? 'text-white/60' : 'text-[#8e6d72]/70'}`}>
+              {patternType === 'sohum' 
+                ? (breathingPhase === 'inhale' ? 'SO' : 'HUM') 
+                : (breathingPhase === 'inhale' ? 'Inhale' : breathingPhase === 'holdIn' ? 'Hold In' : breathingPhase === 'exhale' ? 'Exhale' : 'Hold Out')}
             </span>
             <span className={`text-xs font-mono font-bold ${
-              breathingPhase === 'inhale' ? 'text-pink-200' :
-              breathingPhase === 'holdIn' ? 'text-amber-200' :
-              breathingPhase === 'exhale' ? 'text-sky-200' : 'text-purple-200'
+              patternType === 'sohum'
+                ? breathingPhase === 'inhale' ? 'text-amber-200' : 'text-sky-200'
+                : breathingPhase === 'inhale' ? 'text-pink-200' :
+                breathingPhase === 'holdIn' ? 'text-amber-200' :
+                breathingPhase === 'exhale' ? 'text-sky-200' : 'text-purple-200'
             }`}>
               ({breathingCountdown}s)
             </span>
           </div>
+
+          {/* Cycle count / progress text */}
+          {cycleText && (
+            <span className="text-[8px] font-mono text-white/50 block mt-0.5 tracking-tighter">
+              {cycleText}
+            </span>
+          )}
         </div>
       </div>
     </div>

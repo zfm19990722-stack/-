@@ -1,16 +1,26 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Heart, Compass, BookOpen, Send, RefreshCw, Check, ArrowRight } from 'lucide-react';
+import { 
+  Sparkles, Heart, Compass, BookOpen, Send, RefreshCw, Check, ArrowRight,
+  Volume2, Eye, Hand, Ear, Wind, ShieldCheck, Flame, Layers, Clock, Sun, Feather
+} from 'lucide-react';
+import AbundanceChapterNotes from './AbundanceChapterNotes';
 
 interface AbundanceWisdomSpaceProps {
   language?: 'zh' | 'en';
   onSpeak?: (text: string) => Promise<void>;
+  onAddCustomWish?: (title: string, details: string, category: 'wealth' | 'love' | 'beauty' | 'career' | 'lifestyle') => void;
 }
 
-interface MindsetCard {
+export interface MindsetCard {
   id: string;
+  category: 'wealth' | 'worth' | 'health' | 'career' | 'time';
+  categoryLabelZh: string;
+  categoryLabelEn: string;
   scarcityZh: string;
   scarcityEn: string;
+  surrenderZh: string;
+  surrenderEn: string;
   abundanceZh: string;
   abundanceEn: string;
   quoteZh: string;
@@ -20,39 +30,73 @@ interface MindsetCard {
 const MINDSET_CARDS: MindsetCard[] = [
   {
     id: 'm1',
-    scarcityZh: '我总是赚不够钱，觉得物质生活很紧绷、充满匮乏。',
-    scarcityEn: 'I never have enough money; material life feels extremely tight and scarce.',
-    abundanceZh: '钱只是生命能量的流动。我的存在本身，就是宇宙最天然、最完美的丰盛显化。',
-    abundanceEn: 'Money is simply the flow of life force energy. My very existence is the most natural and perfect manifestation of cosmic abundance.',
-    quoteZh: '“真正的丰盛不是去占有什么，而是认出你本自具足的生命本质。”',
-    quoteEn: '"True abundance is not about possessing anything, but recognizing that your essential nature is already complete and whole."'
+    category: 'wealth',
+    categoryLabelZh: '财富与金钱',
+    categoryLabelEn: 'Wealth & Money',
+    scarcityZh: '我总是赚不够钱，觉得物质生活很紧绷，对未来的财务充满恐慌。',
+    scarcityEn: 'I never have enough money; material life feels tight and full of scarcity.',
+    surrenderZh: '承认我对金钱的紧抓与焦虑。深深呼气，将对数字的执着完全交托给宇宙生命整体。',
+    surrenderEn: 'Acknowledge my anxious grip on money. Exhale deeply and surrender all numbers to the Whole.',
+    abundanceZh: '金钱只是生命能量的流动。我的存在本身就是宇宙最天然、最无缺的丰盛显化。只要内心安住于富足，资粮自然顺流汇聚。',
+    abundanceEn: 'Money is simply the flow of life force. My existence itself is cosmic abundance. When resting in inner fullness, resources flow effortlessly.',
+    quoteZh: '“真正的丰盛不是去占有什么，而是认出你本自具足的生命本质。” ——《丰盛》',
+    quoteEn: '"True abundance is not possessing anything, but recognizing that your essence is already complete." — Abundance'
   },
   {
     id: 'm2',
-    scarcityZh: '社会资源太少，别人拿走了属于我的成功，机会稍纵即逝。',
-    scarcityEn: 'Resources are limited; others are taking my success, and opportunities slip away.',
-    abundanceZh: '宇宙是无限的，属于我的丰盛永远不会被任何人夺走，也永远不会枯竭。',
-    abundanceEn: 'The universe is infinite; the abundance aligned with me can never be snatched by anyone, nor will it ever run dry.',
-    quoteZh: '“在无限的整体中，没有竞争，只有永无止境的绽放和分享。”',
-    quoteEn: '"In the infinite Whole, there is no competition—only endless blooming and mutual sharing."'
+    category: 'worth',
+    categoryLabelZh: '神圣配得感',
+    categoryLabelEn: 'Divine Worthiness',
+    scarcityZh: '我有太多的缺陷和不完美，过去犯过很多错误，不配得到无条件的宠爱与极奢的美好。',
+    scarcityEn: 'I have too many flaws; I made mistakes and feel unworthy of unconditional love and beauty.',
+    surrenderZh: '接纳过去的每一个伤痕。对自己说：对不起，请原谅我，谢谢你，我爱你。放手自我批判。',
+    surrenderEn: 'Accept every wound. Say: I am sorry, please forgive me, thank you, I love you. Release self-judgment.',
+    abundanceZh: '我生来就是神圣不可分割的一部分。认出自己的不完美本身就是造化最极致的完美，我理所当然值得这世间的一切庄严与温柔。',
+    abundanceEn: 'I am an inseparable facet of the Divine. Embracing imperfections is true perfection; I am unconditionally worthy of all elegance.',
+    quoteZh: '“神圣的配得感，来自认清你从未离开过造物主的源头。” ——《唯识》',
+    quoteEn: '"Sacred worthiness stems from realizing you have never left the Source." — Consciousness'
   },
   {
     id: 'm3',
-    scarcityZh: '我必须极度拼搏、牺牲身体和快乐，才能换取微不足道的安全感。',
-    scarcityEn: 'I must work myself to exhaustion and sacrifice my joy to trade for minor security.',
-    abundanceZh: '丰盛是自然顺流的，它来自内心的优雅、喜悦与全然放松，而非焦虑的挣扎。',
-    abundanceEn: 'Abundance flows naturally; it blossoms from inner grace, joy, and deep relaxation, not from anxious struggles.',
-    quoteZh: '“当你退一步，放手并安住在喜悦中，生命自然会为你推开最完美的门扉。”',
-    quoteEn: '"When you step back, let go, and rest in joy, life naturally swings open the most perfect doors for you."'
+    category: 'career',
+    categoryLabelZh: '事业与竞争',
+    categoryLabelEn: 'Career & Success',
+    scarcityZh: '行业竞争太残酷，资源极其有限，别人成功了就意味着属于我的机会越来越少。',
+    scarcityEn: 'Competition is fierce; resources are scarce. If others succeed, my opportunities vanish.',
+    surrenderZh: '放下与任何人的比较。退后一步，认出“竞争”只是小我制造的匮乏幻觉。',
+    surrenderEn: 'Drop all comparisons. Step back and recognize that competition is just the ego’s scarcity illusion.',
+    abundanceZh: '无限的宇宙中没有匮乏与争夺，只有永无止境的共同绽放。属于我的神圣天命与灵感，任何人都不可能夺走。',
+    abundanceEn: 'In the infinite Whole, there is no competition—only endless co-blooming. Nothing aligned with my destiny can ever be taken away.',
+    quoteZh: '“在无限的整体中，没有竞争，只有永无止境的绽放和分享。” ——《丰盛》',
+    quoteEn: '"In the infinite Whole, there is no competition—only endless blooming and mutual sharing." — Abundance'
   },
   {
     id: 'm4',
-    scarcityZh: '我有太多的不完美和缺陷，不配得到这世间极致的美好。',
-    scarcityEn: 'I have too many flaws and imperfections; I am unworthy of the ultimate beauty of life.',
-    abundanceZh: '我生来就是神圣的一部分。每一个经历、每一次伤痛都是丰盛能量的独特礼物。',
-    abundanceEn: 'I am born as an block of the divine. Every experience and every wound is a unique gift of abundance.',
-    quoteZh: '“认出自己的不完美本身就是完美的，这就是大配得感。”',
-    quoteEn: '"Recognizing that your imperfection is itself perfect is the ultimate sense of worthiness."'
+    category: 'health',
+    categoryLabelZh: '身心与健康',
+    categoryLabelEn: 'Body & Vitality',
+    scarcityZh: '我的身体经常疲惫紧绷，容易生病衰老，总觉得自己的精力远远不够用。',
+    scarcityEn: 'My body is constantly tired and stressed; I worry about aging and insufficient vitality.',
+    surrenderZh: '感谢身体细胞每一秒的辛劳付出。放下对疾病的抗拒，在全然的静默中允许身体自我修复。',
+    surrenderEn: 'Thank every cell for its tireless service. Release all resistance and allow the body to heal in stillness.',
+    abundanceZh: '生命深处蕴藏着无限的原初生机（Prana）。当我全然放松并深呼吸，宇宙的大能正在每一个细胞中自愈与焕新。',
+    abundanceEn: 'Infinite primal life force (Prana) dwells within. When relaxing deeply, cosmic vitality regenerates every cell.',
+    quoteZh: '“身体本就是宇宙的圣殿，全然臣服是最好的疗愈。” ——《真原医》',
+    quoteEn: '"The body is a sacred temple; total surrender is the ultimate medicine." — Primordial Medicine'
+  },
+  {
+    id: 'm5',
+    category: 'time',
+    categoryLabelZh: '时间与未来',
+    categoryLabelEn: 'Time & Future',
+    scarcityZh: '时间总是不够用，我落后同龄人太多了，一想到未知的明天就感到无比焦虑。',
+    scarcityEn: 'I am running out of time and falling behind; the thought of tomorrow fills me with anxiety.',
+    surrenderZh: '放弃对未来的焦虑预设。回到呼吸，认出“过去”与“未来”都只是头脑投射的虚影。',
+    surrenderEn: 'Release anxious forecasting. Return to the breath and see that past and future are merely mental shadows.',
+    abundanceZh: '真正的生命只有“此时，此地，此刻”。在当下的永恒静止中，宇宙早已把最完美、最周全的丰盛安排就绪。',
+    abundanceEn: 'Life exists solely in the Here and Now. In the timeless present, the universe has already arranged the most complete abundance.',
+    quoteZh: '“活在当下，一切都在最好的安排中展开。” ——《活在当下》',
+    quoteEn: '"Living in the present moment, everything unfolds in perfect divine order." — Here and Now'
   }
 ];
 
@@ -71,8 +115,8 @@ const GRATITUDE_QUOTES = [
   }
 ];
 
-export default function AbundanceWisdomSpace({ language = 'zh', onSpeak }: AbundanceWisdomSpaceProps) {
-  const [activeTab, setActiveTab] = useState<'gratitude' | 'surrender' | 'alchemy' | 'now'>('gratitude');
+export default function AbundanceWisdomSpace({ language = 'zh', onSpeak, onAddCustomWish }: AbundanceWisdomSpaceProps) {
+  const [activeTab, setActiveTab] = useState<'alchemy' | 'now' | 'chapters' | 'gratitude' | 'surrender'>('chapters');
   
   // Gratitude Resonance states
   const [resonanceScore, setResonanceScore] = useState(108);
@@ -84,60 +128,90 @@ export default function AbundanceWisdomSpace({ language = 'zh', onSpeak }: Abund
   const [isDissolving, setIsDissolving] = useState(false);
   const [surrenderedState, setSurrenderedState] = useState(false);
 
-  // Alchemy states
+  // Mindset Alchemy states
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [flippedCards, setFlippedCards] = useState<Record<string, boolean>>({});
   const [alchemyCompleted, setAlchemyCompleted] = useState<Record<string, boolean>>({});
+  
+  // Custom AI Alchemy states
+  const [customLimitingThought, setCustomLimitingThought] = useState('');
+  const [isAlchemizingAI, setIsAlchemizingAI] = useState(false);
+  const [customAlchemyResult, setCustomAlchemyResult] = useState<{
+    scarcityFilter: string;
+    surrenderRelease: string;
+    abundanceReality: string;
+    mantra: string;
+    quote: string;
+  } | null>(null);
 
-  // Grounding states
-  const [groundingStep, setGroundingStep] = useState(0);
+  // Here & Now Grounding states
+  const [groundingMode, setGroundingMode] = useState<'quick-15s' | 'sensory-1m' | 'presence-3m'>('sensory-1m');
   const [isGroundingActive, setIsGroundingActive] = useState(false);
-  const [groundingTimer, setGroundingTimer] = useState(5);
-  const groundingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [groundingTimeRemaining, setGroundingTimeRemaining] = useState(60);
+  const [sensoryChecklist, setSensoryChecklist] = useState<Record<number, boolean>>({});
+  const [presenceBreathPhase, setPresenceBreathPhase] = useState<'inhale' | 'exhale'>('inhale');
+  const [presenceQuoteIdx, setPresenceQuoteIdx] = useState(0);
 
-  // Web Audio API pure bell synthesizer for authentic Tibetan bowl sound
-  const playBellChime = () => {
+  const groundingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isEn = language === 'en';
+
+  // Tibetan Singing Bowl Web Audio Synth
+  const playBellChime = (type: 'bowl' | 'chime' | 'deep' = 'bowl') => {
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return;
       
       const ctx = new AudioContextClass();
-      const osc = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const gainNode = ctx.createGain();
+      if (ctx.state === 'suspended') ctx.resume();
+      const now = ctx.currentTime;
 
-      // Tibetan singing bowl signature frequency harmonics:
-      // Base around 168Hz or 210Hz (very centering, solfeggio-like)
-      const baseFreq = 210;
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+      if (type === 'bowl') {
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gainNode = ctx.createGain();
 
-      // Warm overtones for organic texture
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(baseFreq * 1.5, ctx.currentTime); // Perfect fifth overtone
-      
-      gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1); // soft attack
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 4.5); // long warm decay
+        // 210Hz & 315Hz sacred Tibetan harmonic
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(210, now);
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(315, now);
 
-      osc.connect(gainNode);
-      osc2.connect(gainNode);
-      gainNode.connect(ctx.destination);
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.28, now + 0.08);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 4.2);
 
-      osc.start();
-      osc2.start();
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
+        gainNode.connect(ctx.destination);
 
-      osc.stop(ctx.currentTime + 5);
-      osc2.stop(ctx.currentTime + 5);
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 4.5);
+        osc2.stop(now + 4.5);
+      } else if (type === 'chime') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(528, now + 0.3);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.2, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 2.6);
+      }
     } catch (e) {
-      console.warn("Audio Context chime not supported or blocked by user gesture yet:", e);
+      console.warn("Audio Context chime not available:", e);
     }
   };
 
+  // 1. Gratitude Chanting Handler
   const handleGratitudeChant = (e: React.MouseEvent<HTMLButtonElement>) => {
-    playBellChime();
+    playBellChime('bowl');
     setResonanceScore(prev => prev + 1);
 
-    // Create a beautiful bubble where clicked or randomly inside button bounds
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left || 120;
     const y = e.clientY - rect.top || 40;
@@ -145,103 +219,187 @@ export default function AbundanceWisdomSpace({ language = 'zh', onSpeak }: Abund
     const newBubble = { id: Date.now() + Math.random(), x, y };
     setBubbles(prev => [...prev, newBubble]);
 
-    // Cleanup bubble
     setTimeout(() => {
       setBubbles(prev => prev.filter(b => b.id !== newBubble.id));
     }, 1500);
 
-    // Rotate quote every 5 clicks
-    if (Math.random() < 0.25) {
+    if (Math.random() < 0.3) {
       setGratitudeQuoteIndex(prev => (prev + 1) % GRATITUDE_QUOTES.length);
     }
   };
 
+  // 2. Surrender Submit Handler
   const handleSurrenderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!worryInput.trim()) return;
 
     setIsDissolving(true);
-    // Simulate text particles dissolving over 1.5 seconds
     setTimeout(() => {
       setIsDissolving(false);
       setSurrenderedState(true);
       setWorryInput('');
-      playBellChime();
+      playBellChime('bowl');
     }, 1800);
   };
 
-  const handleResetSurrender = () => {
-    setSurrenderedState(false);
-  };
-
+  // 3. Flip Preset Mindset Card
   const handleAlchemizeCard = (id: string) => {
-    setFlippedCards(prev => ({ ...prev, [id]: true }));
+    setFlippedCards(prev => ({ ...prev, [id]: !prev[id] }));
     setAlchemyCompleted(prev => ({ ...prev, [id]: true }));
-    playBellChime();
+    playBellChime('bowl');
   };
 
-  const startGrounding = () => {
-    if (groundingIntervalRef.current) clearInterval(groundingIntervalRef.current);
-    setIsGroundingActive(true);
-    setGroundingStep(1);
-    setGroundingTimer(5);
+  // 4. Custom AI Mindset Transmutation
+  const handleCustomAlchemy = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!customLimitingThought.trim() || isAlchemizingAI) return;
 
-    groundingIntervalRef.current = setInterval(() => {
-      setGroundingTimer(prev => {
-        if (prev <= 1) {
-          setGroundingStep(step => {
-            if (step >= 3) {
-              clearInterval(groundingIntervalRef.current!);
-              setIsGroundingActive(false);
-              playBellChime();
-              return 0; // complete
-            }
-            return step + 1;
-          });
-          return 5; // Reset step timer
-        }
-        return prev - 1;
+    setIsAlchemizingAI(true);
+    playBellChime('chime');
+
+    try {
+      const response = await fetch('/api/wisdom/alchemize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limitingThought: customLimitingThought }),
       });
+
+      if (!response.ok) {
+        throw new Error('Alchemy server returned error');
+      }
+
+      const data = await response.json();
+      setCustomAlchemyResult(data);
+      playBellChime('bowl');
+    } catch (err) {
+      console.warn("AI Alchemy offline fallback:", err);
+      // Fallback
+      setCustomAlchemyResult({
+        scarcityFilter: "小我将局部的暂时现象当成了生命的全部，产生了‘我不够’或‘外界正在剥夺我’的认知错觉。",
+        surrenderRelease: "深呼吸，闭上眼对自己的焦虑说：对不起，请原谅我，谢谢你，我爱你。我放下紧抓不放的抗拒。",
+        abundanceReality: "宇宙在每一个瞬间都在无条件滋养着你。当你认出你就是生命本身，外在的丰足与奇迹便会自然显现。",
+        mantra: "我放手，我允许，我安住在本自圆满的丰盛中。",
+        quote: "“真正的丰盛不是占有什么，而是认出你本自具足的生命本质。” ——《丰盛》"
+      });
+    } finally {
+      setIsAlchemizingAI(false);
+    }
+  };
+
+  // 5. Here & Now Grounding Engine
+  const startGroundingSession = (mode: 'quick-15s' | 'sensory-1m' | 'presence-3m') => {
+    if (groundingIntervalRef.current) clearInterval(groundingIntervalRef.current);
+    
+    setGroundingMode(mode);
+    setIsGroundingActive(true);
+    setSensoryChecklist({});
+    playBellChime('bowl');
+
+    const totalSeconds = mode === 'quick-15s' ? 15 : mode === 'sensory-1m' ? 60 : 180;
+    setGroundingTimeRemaining(totalSeconds);
+
+    let sec = totalSeconds;
+    groundingIntervalRef.current = setInterval(() => {
+      sec--;
+      setGroundingTimeRemaining(sec);
+
+      // In 3m mode, toggle breath guide every 6s
+      if (sec % 6 === 0) {
+        setPresenceBreathPhase(p => (p === 'inhale' ? 'exhale' : 'inhale'));
+      }
+      if (sec % 20 === 0) {
+        setPresenceQuoteIdx(i => (i + 1) % 4);
+      }
+
+      if (sec <= 0) {
+        if (groundingIntervalRef.current) clearInterval(groundingIntervalRef.current);
+        setIsGroundingActive(false);
+        playBellChime('bowl');
+      }
     }, 1000);
   };
 
-  const isEn = language === 'en';
+  const stopGroundingSession = () => {
+    if (groundingIntervalRef.current) clearInterval(groundingIntervalRef.current);
+    setIsGroundingActive(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (groundingIntervalRef.current) clearInterval(groundingIntervalRef.current);
+    };
+  }, []);
+
+  const toggleSensoryItem = (index: number) => {
+    playBellChime('chime');
+    setSensoryChecklist(prev => ({ ...prev, [index]: !prev[index] }));
+  };
+
+  const filteredCards = selectedCategory === 'all' 
+    ? MINDSET_CARDS 
+    : MINDSET_CARDS.filter(c => c.category === selectedCategory);
+
+  const PRESENCE_QUOTES = [
+    {
+      zh: '“丰盛从来不属于过去或未来。唯有在此时、此地、此刻，你才是无限的。”',
+      en: '"Abundance never belongs to past or future. Only Here and Now are you truly infinite."'
+    },
+    {
+      zh: '“把注意力从脑海中的杂念，轻轻带回到身体的呼吸与胸口的空间。”',
+      en: '"Gently redirect your attention from head-chatter back to the breath in your chest."'
+    },
+    {
+      zh: '“在静默的背景中，你早已拥有一切，无需证明，无需争夺。”',
+      en: '"In the background silence, you already possess everything—no striving, no proving."'
+    },
+    {
+      zh: '“允许这一刻如其所是。这一刻就是造化给您最完美的礼物。”',
+      en: '"Allow this moment to be exactly as it is. It is the ultimate divine gift to you."'
+    }
+  ];
 
   return (
     <div
-      className="p-6 md:p-8 rounded-[32px] bg-white/40 backdrop-blur-2xl border border-white/40 shadow-xl shadow-pink-100/10 relative overflow-hidden text-left"
+      className="p-5 md:p-8 rounded-[32px] bg-white/45 backdrop-blur-2xl border border-white/40 shadow-xl shadow-pink-100/10 relative overflow-hidden text-left"
       id="abundance-wisdom-space"
     >
       {/* Visual Header Decoration */}
-      <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-amber-100/40 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-amber-100/40 via-pink-100/20 to-transparent pointer-events-none rounded-full blur-2xl" />
       
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 pb-4 border-b border-[#8e6d72]/15 gap-4">
         <div>
-          <span className="text-[10px] uppercase tracking-widest text-[#8e6d72] font-bold block mb-1">
-            {isEn ? 'Dr. Jan’s Abundance Wisdom Series' : '杨定一博士《丰盛》全部生命系列智慧专区'}
-          </span>
-          <h3 className="font-serif text-xl md:text-2xl text-[#8e6d72] font-semibold flex items-center gap-2">
-            <Compass className="w-5 h-5 text-amber-500 animate-spin" style={{ animationDuration: '10s' }} />
-            <span>{isEn ? 'The Abundance Sanctuary' : '丰盛意识觉醒空间'}</span>
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="px-2 py-0.5 rounded-full bg-amber-100/80 text-amber-800 text-[10px] font-mono font-bold tracking-wider uppercase">
+              {isEn ? 'Dr. Jan Ding-I Wisdom' : '杨定一博士《全部生命系列》'}
+            </span>
+            <span className="text-[10px] text-[#8e6d72]/70 font-semibold">
+              {isEn ? 'Abundance • Consciousness • Now' : '《丰盛》《唯识》《活在当下》'}
+            </span>
+          </div>
+          <h3 className="font-serif text-xl md:text-2xl text-[#8e6d72] font-bold flex items-center gap-2">
+            <Compass className="w-5 h-5 text-amber-500 animate-spin" style={{ animationDuration: '12s' }} />
+            <span>{isEn ? 'The Abundance Sanctuary' : '丰盛智慧觉醒空间'}</span>
           </h3>
         </div>
 
-        {/* Tab Controls */}
-        <div className="flex flex-wrap gap-1 bg-[#8e6d72]/5 p-1 rounded-full border border-[#8e6d72]/10 w-full md:w-auto">
+        {/* Top Feature Nav Tabs */}
+        <div className="flex flex-wrap gap-1 bg-[#8e6d72]/5 p-1 rounded-2xl border border-[#8e6d72]/10 w-full md:w-auto">
           {[
-            { id: 'gratitude', label: isEn ? 'Gratitude' : '感恩共振' },
-            { id: 'surrender', label: isEn ? 'Surrender' : '全然臣服' },
-            { id: 'alchemy', label: isEn ? 'Alchemy' : '唯识转念' },
-            { id: 'now', label: isEn ? 'Here & Now' : '活在当下' }
+            { id: 'chapters', label: isEn ? '📖 Chapters & Notes' : '📖 篇章要义与读书笔记' },
+            { id: 'alchemy', label: isEn ? '✨ Mindset Alchemy' : '✨ 唯识转念' },
+            { id: 'now', label: isEn ? '🧘 Here & Now' : '🧘 活在当下' },
+            { id: 'gratitude', label: isEn ? '💖 Gratitude' : '💖 感恩共振' },
+            { id: 'surrender', label: isEn ? '🕊️ Surrender' : '🕊️ 全然臣服' },
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 flex-1 md:flex-none text-center ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 flex-1 md:flex-none text-center cursor-pointer ${
                 activeTab === tab.id
-                  ? 'bg-[#8e6d72] text-white shadow-sm'
-                  : 'text-[#8e6d72]/70 hover:bg-white/30'
+                  ? 'bg-[#8e6d72] text-white shadow-md shadow-pink-900/10'
+                  : 'text-[#8e6d72]/80 hover:bg-white/40'
               }`}
+              id={`wisdom-tab-${tab.id}`}
             >
               {tab.label}
             </button>
@@ -249,10 +407,594 @@ export default function AbundanceWisdomSpace({ language = 'zh', onSpeak }: Abund
         </div>
       </div>
 
-      {/* Dynamic Tab Body */}
-      <div className="min-h-[280px]">
+      {/* Dynamic Tab Content */}
+      <div className="min-h-[300px]">
         
-        {/* TAB 1: GRATITUDE RESONANCE ("谢谢"练习) */}
+        {/* ========================================================
+            TAB 0: CHAPTERS & READING NOTES (全书篇章要义与读书笔记)
+        ======================================================== */}
+        {activeTab === 'chapters' && (
+          <div className="space-y-6 animate-fadeIn" id="tab-chapters-notes">
+            <AbundanceChapterNotes
+              language={language}
+              onSpeak={onSpeak}
+              onAddCustomWish={onAddCustomWish}
+            />
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB 1: 唯识转念 (Mindset Alchemy) - DEEP OPTIMIZATION
+        ======================================================== */}
+        {activeTab === 'alchemy' && (
+          <div className="space-y-6 animate-fadeIn" id="tab-mindset-alchemy">
+            
+            {/* Top Concept Banner */}
+            <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-r from-amber-50/70 via-rose-50/40 to-amber-50/60 border border-amber-200/50 leading-relaxed text-xs text-[#6d5b5e]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                <span className="text-xs uppercase tracking-wider font-bold text-amber-700 flex items-center gap-1.5">
+                  <Flame className="w-4 h-4 text-amber-600 animate-pulse" />
+                  <span>{isEn ? 'Consciousness Transmutation Alchemy' : '唯识转念炼金术 • 破除小我匮乏幻象'}</span>
+                </span>
+                <span className="text-[10px] text-[#8e6d72] font-mono bg-white/70 px-2 py-0.5 rounded-full border border-amber-200/50">
+                  {isEn ? 'Ego Filter ➜ Surrender ➜ True Abundance' : '小我滤镜 ➜ 全然臣服 ➜ 显露真如'}
+                </span>
+              </div>
+              <p className="opacity-90 leading-relaxed">
+                {isEn
+                  ? 'Dr. Jan explains that scarcity, competition, and anxiety are merely filters projected by the ego. Through Consciousness (Wei-Shi), once we observe the filter and surrender, our original infinite abundance is instantly restored.'
+                  : '杨定一博士在《唯识》《丰盛》中揭示：所有的匮乏、攀比与焦虑，都只是小我编织的“认知滤镜”。只要借由觉察看破妄念、承认并臣服交付，生命的真实丰盛实相便会不求自来。'}
+              </p>
+            </div>
+
+            {/* AI Custom Mindset Transmuter Box */}
+            <div className="p-5 rounded-2xl bg-white/70 border border-[#8e6d72]/15 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#8e6d72] flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>{isEn ? 'AI Wei-Shi Mindset Transmutation Forge' : '✨ 自定义念头 • AI 唯识转念炼金炉'}</span>
+                </span>
+                <span className="text-[10px] text-[#8e6d72]/60 font-medium">
+                  {isEn ? 'Transform any personal limiting belief' : '输入任何困扰您的现实焦虑或匮乏念头'}
+                </span>
+              </div>
+
+              {/* Quick Prompt Ideas */}
+              <div className="flex flex-wrap gap-1.5 text-[10px]">
+                <span className="text-[#8e6d72]/60 font-semibold py-0.5">{isEn ? 'Try:' : '一键填入常见妄念：'}</span>
+                {[
+                  '担心存款不够，下个月开销很大',
+                  '觉得自己年纪大了，错过了最好赚钱的时机',
+                  '身边优秀的人太多，我随时可能被淘汰',
+                  '我有太多缺点，不配过上轻盈奢华的生活'
+                ].map((promptText, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setCustomLimitingThought(promptText)}
+                    className="px-2 py-1 rounded-lg bg-[#8e6d72]/5 hover:bg-[#8e6d72]/15 text-[#8e6d72] font-medium transition-colors cursor-pointer border border-[#8e6d72]/10 text-left truncate max-w-[200px] sm:max-w-none"
+                  >
+                    "{promptText}"
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleCustomAlchemy} className="space-y-3">
+                <div className="relative">
+                  <textarea
+                    value={customLimitingThought}
+                    onChange={(e) => setCustomLimitingThought(e.target.value)}
+                    placeholder={isEn ? "Enter your anxious thought (e.g. 'I fear I will never earn enough...')" : "输入您的限制性念头（例如：‘我很害怕投资失败，觉得自己能力不够，经常彻夜失眠...’）"}
+                    rows={2}
+                    className="w-full p-3.5 rounded-xl border border-[#8e6d72]/20 focus:border-[#8e6d72] focus:ring-1 focus:ring-[#8e6d72]/20 bg-white text-xs text-[#4a2e31] placeholder:text-[#8e6d72]/40 resize-none transition-all"
+                  />
+                  {isAlchemizingAI && (
+                    <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-amber-700">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>{isEn ? 'Alchemizing Ego Illusion with Wei-Shi Wisdom...' : '正在以杨定一唯识心法解构小我妄念并注入真如实相...'}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-[#8e6d72]/60 italic">
+                    {isEn ? 'Converts scarcity illusion into divine abundance reality' : '以唯识观照，破除妄念，显发本具圆满'}
+                  </span>
+                  <button
+                    type="submit"
+                    disabled={isAlchemizingAI || !customLimitingThought.trim()}
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-[#8e6d72] hover:from-amber-700 hover:to-[#7e5d62] text-white text-xs font-bold font-sans transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+                    id="submit-ai-alchemy-btn"
+                  >
+                    <Flame className="w-3.5 h-3.5 text-amber-200" />
+                    <span>{isEn ? 'Alchemize with Wei-Shi' : '启动唯识转念'}</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* AI Transmutation Result Card */}
+              {customAlchemyResult && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-5 rounded-2xl bg-gradient-to-br from-amber-50/90 via-white to-rose-50/70 border border-amber-200/80 shadow-md space-y-4 mt-3"
+                >
+                  <div className="flex items-center justify-between border-b border-amber-200/50 pb-2">
+                    <span className="text-xs font-bold text-amber-800 flex items-center gap-1.5 font-serif">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>{isEn ? 'Consciousness Alchemy Result' : '唯识转念实相报告 • 觉醒回响'}</span>
+                    </span>
+                    {onSpeak && (
+                      <button
+                        type="button"
+                        onClick={() => onSpeak(`${customAlchemyResult.abundanceReality}。${customAlchemyResult.mantra}`)}
+                        className="px-2.5 py-1 rounded-lg bg-amber-100/70 hover:bg-amber-200/70 text-amber-800 text-[10.5px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                        title="深沉女声朗读实相真言"
+                      >
+                        <Volume2 className="w-3.5 h-3.5" />
+                        <span>{isEn ? 'Listen' : '真声朗诵'}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    {/* 1. Scarcity Filter */}
+                    <div className="p-3 rounded-xl bg-white/70 border border-rose-100 space-y-1">
+                      <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">
+                        ❌ 1. 小我匮乏滤镜 (Ego Illusion)
+                      </span>
+                      <p className="text-[#6d5b5e] leading-relaxed">
+                        {customAlchemyResult.scarcityFilter}
+                      </p>
+                    </div>
+
+                    {/* 2. Surrender Release */}
+                    <div className="p-3 rounded-xl bg-white/70 border border-amber-100 space-y-1">
+                      <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">
+                        🕊️ 2. 承认放手臣服 (Surrender)
+                      </span>
+                      <p className="text-[#6d5b5e] leading-relaxed">
+                        {customAlchemyResult.surrenderRelease}
+                      </p>
+                    </div>
+
+                    {/* 3. True Abundance Reality */}
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-300/40 space-y-1">
+                      <span className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block">
+                        👑 3. 唯识真如丰盛 (True Reality)
+                      </span>
+                      <p className="text-[#4a2e31] font-semibold font-serif leading-relaxed">
+                        {customAlchemyResult.abundanceReality}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Mantra Banner */}
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/15 via-[#8e6d72]/10 to-amber-500/15 border border-amber-300/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                    <div>
+                      <span className="text-[9px] uppercase font-mono tracking-widest text-[#8e6d72] font-bold block mb-0.5">
+                        🌸 即刻转化随身真言 (Somatic Mantra)
+                      </span>
+                      <p className="text-sm font-serif font-bold text-[#8e6d72]">
+                        “{customAlchemyResult.mantra}”
+                      </p>
+                    </div>
+
+                    {onAddCustomWish && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onAddCustomWish(
+                            `唯识真言：${customAlchemyResult.mantra.slice(0, 16)}`,
+                            `【唯识真如实相】\n${customAlchemyResult.abundanceReality}\n\n【随身转化口诀】\n${customAlchemyResult.mantra}`,
+                            'wealth'
+                          );
+                          playBellChime('chime');
+                        }}
+                        className="px-3.5 py-1.5 rounded-lg bg-[#8e6d72] text-white hover:bg-[#7e5d62] text-[10.5px] font-bold shrink-0 transition-colors shadow-sm cursor-pointer"
+                      >
+                        + 保存为心愿卡片
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="text-[10px] text-[#8e6d72]/70 italic text-center">
+                    {customAlchemyResult.quote}
+                  </p>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Category Filter for Mindset Library */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-xs font-bold text-[#8e6d72] uppercase tracking-wider">
+                  {isEn ? 'Dr. Jan’s Classic Wei-Shi Mindset Library' : '《丰盛》原书经典唯识转念典藏库 (3D 翻转卡片)'}
+                </span>
+                
+                {/* Category Pills */}
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { id: 'all', label: isEn ? 'All' : '全部维度' },
+                    { id: 'wealth', label: isEn ? 'Wealth' : '财富金钱' },
+                    { id: 'worth', label: isEn ? 'Worth' : '神圣配得' },
+                    { id: 'career', label: isEn ? 'Career' : '事业竞争' },
+                    { id: 'health', label: isEn ? 'Health' : '身心活力' },
+                    { id: 'time', label: isEn ? 'Time' : '时间当下' },
+                  ].map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`px-2.5 py-1 rounded-full text-[10.5px] font-bold transition-all cursor-pointer ${
+                        selectedCategory === cat.id
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'bg-white/60 text-[#8e6d72] hover:bg-white'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3D Mindset Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredCards.map((card) => {
+                  const isFlipped = flippedCards[card.id];
+                  
+                  return (
+                    <div
+                      key={card.id}
+                      className="relative min-h-[190px] perspective-1000 group cursor-pointer"
+                      onClick={() => handleAlchemizeCard(card.id)}
+                    >
+                      <motion.div
+                        className="w-full h-full duration-500 preserve-3d"
+                        animate={{ rotateY: isFlipped ? 180 : 0 }}
+                        transition={{ duration: 0.6, ease: "easeInOut" }}
+                      >
+                        {/* FRONT CARD: Scarcity Filter (小我匮乏) */}
+                        <div className="absolute inset-0 backface-hidden p-5 rounded-2xl bg-white/70 border border-[#8e6d72]/15 flex flex-col justify-between hover:border-amber-400/50 hover:shadow-md transition-all shadow-xs">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] uppercase font-mono tracking-wider font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
+                                {isEn ? '❌ SCARCITY ILLUSION' : '❌ 小我匮乏滤镜'}
+                              </span>
+                              <span className="text-[10px] font-mono text-[#8e6d72]/60 font-semibold">
+                                {card.categoryLabelZh}
+                              </span>
+                            </div>
+                            <p className="text-xs text-[#6d5b5e] font-sans leading-relaxed pt-1">
+                              {isEn ? card.scarcityEn : card.scarcityZh}
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center justify-between pt-3 border-t border-[#8e6d72]/10 mt-2">
+                            <span className="text-[9.5px] text-[#8e6d72]/60 italic">
+                              {isEn ? 'Click to Transmute' : '轻点卡片启动 3D 翻转'}
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 py-1 px-3 rounded-full hover:bg-amber-600 hover:text-white transition-all shadow-xs">
+                              <Flame className="w-3 h-3 text-amber-500" />
+                              <span>{isEn ? 'Alchemize' : '启动转念'}</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* BACK CARD: True Abundance Reality (唯识真如) */}
+                        <div className="absolute inset-0 backface-hidden rotate-y-180 p-5 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-amber-100/50 border border-amber-300/70 flex flex-col justify-between shadow-md">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] uppercase font-mono tracking-wider font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-full border border-amber-200">
+                                {isEn ? '👑 TRUE ABUNDANCE REALITY' : '👑 唯识真如丰盛实相'}
+                              </span>
+                              <span className="text-[10px] text-amber-700 font-mono font-bold">
+                                {card.categoryLabelZh}
+                              </span>
+                            </div>
+                            <p className="text-xs text-[#8e6d72] font-serif font-bold leading-relaxed pt-1">
+                              {isEn ? card.abundanceEn : card.abundanceZh}
+                            </p>
+                          </div>
+
+                          <div className="pt-2 border-t border-amber-200/50 flex items-center justify-between">
+                            <span className="text-[9.5px] italic text-amber-800/80 truncate max-w-[200px]">
+                              {isEn ? card.quoteEn : card.quoteZh}
+                            </span>
+                            {onSpeak && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSpeak(card.abundanceZh);
+                                }}
+                                className="p-1.5 rounded-lg bg-amber-200/60 hover:bg-amber-300 text-amber-900 text-xs transition-colors cursor-pointer"
+                                title="真声朗诵实相"
+                              >
+                                <Volume2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Progress counter */}
+              <div className="flex items-center justify-between text-[11px] font-bold text-[#8e6d72] bg-[#8e6d72]/5 px-4 py-2.5 rounded-2xl border border-[#8e6d72]/10">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-amber-600" />
+                  <span>{isEn ? 'CONSCIOUS TRANSITION PROGRESS' : '当前唯识转念觉醒实修完成度'}</span>
+                </span>
+                <span className="font-mono bg-white px-2.5 py-0.5 rounded-lg border border-[#8e6d72]/15 text-amber-700 font-bold">
+                  {Object.keys(alchemyCompleted).length} / {MINDSET_CARDS.length}
+                </span>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB 2: 活在当下 (Here and Now Grounding) - DEEP OPTIMIZATION
+        ======================================================== */}
+        {activeTab === 'now' && (
+          <div className="space-y-6 animate-fadeIn" id="tab-here-and-now">
+            
+            {/* Top Concept Banner */}
+            <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-r from-teal-50/70 via-sky-50/40 to-amber-50/60 border border-teal-200/50 leading-relaxed text-xs text-[#526366]">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs uppercase tracking-wider font-bold text-teal-800 flex items-center gap-1.5">
+                  <Sun className="w-4 h-4 text-amber-500 animate-spin" style={{ animationDuration: '20s' }} />
+                  <span>{isEn ? 'The Eternal Present Moment' : '活在当下 • 此时·此地·此刻'}</span>
+                </span>
+                <span className="text-[10px] text-teal-800 font-mono bg-white/70 px-2 py-0.5 rounded-full border border-teal-200/50">
+                  {isEn ? 'Sensory Grounding & Pure Presence' : '感官锚定 ➜ 止息妄念 ➜ 安住当下'}
+                </span>
+              </div>
+              <p className="opacity-90 leading-relaxed text-[#5c6d70]">
+                {isEn
+                  ? 'Abundance never dwells in yesterday’s regrets or tomorrow’s fears. It exists exclusively in the infinite "Here and Now." Ground your senses into the present to access spontaneous grace.'
+                  : '杨定一博士在《活在当下》《一切都好》中指出：丰盛从来不属于昨天的悔恨或明天的忧虑，它只存在于唯一真实的“此时此地”。通过五感锚定与纯粹觉知，瞬间切断头脑妄想，回到生命的源头。'}
+              </p>
+            </div>
+
+            {/* Mode Selector Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[
+                {
+                  id: 'quick-15s',
+                  title: isEn ? '15s Instant Reset' : '⚡ 15秒 极速心智清空',
+                  desc: isEn ? 'Rapid 3-step sensory awareness to snap out of panic.' : '三步快速视觉、触觉与静默观照，瞬间切断焦虑。',
+                  icon: Clock
+                },
+                {
+                  id: 'sensory-1m',
+                  title: isEn ? '1m 5-4-3-2-1 Grounding' : '🌟 1分钟 5-4-3-2-1 丰盛感官锚定',
+                  desc: isEn ? '5 sights, 4 touches, 3 sounds, 2 breaths, 1 pure I-AM.' : '视觉、触觉、听觉、深呼吸与本我觉知的五维实修。',
+                  icon: Layers
+                },
+                {
+                  id: 'presence-3m',
+                  title: isEn ? '3m Pure Presence Flow' : '🧘 3分钟 “此时此刻” 纯粹观照',
+                  desc: isEn ? 'Synced breath guide with singing bowl harmonic soundscapes.' : '同步呼吸律动、颂钵共振与深层潜意识觉知浸润。',
+                  icon: Compass
+                }
+              ].map(m => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => startGroundingSession(m.id as any)}
+                  className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
+                    isGroundingActive && groundingMode === m.id
+                      ? 'bg-teal-50/90 border-teal-400 shadow-md ring-2 ring-teal-300/40'
+                      : 'bg-white/70 border-[#8e6d72]/15 hover:bg-white hover:border-[#8e6d72]/30 shadow-xs'
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-bold text-[#8e6d72] block flex items-center gap-1.5">
+                      <m.icon className="w-4 h-4 text-amber-600" />
+                      <span>{m.title}</span>
+                    </span>
+                    <p className="text-[10.5px] text-[#6d5b5e] leading-relaxed">
+                      {m.desc}
+                    </p>
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                      isGroundingActive && groundingMode === m.id
+                        ? 'bg-teal-600 text-white animate-pulse'
+                        : 'bg-[#8e6d72]/10 text-[#8e6d72]'
+                    }`}>
+                      {isGroundingActive && groundingMode === m.id ? '正在进行中...' : '点击启动'}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Active Grounding Stage Container */}
+            <div className="p-6 md:p-8 rounded-3xl bg-white/70 border border-white/80 shadow-md space-y-6 text-center">
+              
+              {!isGroundingActive ? (
+                <div className="py-6 space-y-4 max-w-md mx-auto">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-100 to-teal-100 flex items-center justify-center mx-auto shadow-inner">
+                    <Sun className="w-8 h-8 text-amber-600 animate-spin" style={{ animationDuration: '16s' }} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h4 className="font-serif text-lg font-bold text-[#8e6d72]">
+                      {isEn ? 'Enter the Sanctuary of "Here and Now"' : '随时回到当下 • 找回内心的定海神针'}
+                    </h4>
+                    <p className="text-xs text-[#6d5b5e] leading-relaxed">
+                      {isEn
+                        ? 'Select any practice above. Allow gentle Tibetan singing bowl acoustics and sensory awareness to melt away time and fatigue.'
+                        : '请选择上方任一种当下实修模式。在真实的铜钵磬音与感官锚定中，让漂泊的念头瞬间安歇在永恒的丰盛实相里。'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => startGroundingSession('sensory-1m')}
+                    className="px-6 py-2.5 rounded-full bg-[#8e6d72] hover:bg-[#7e5d62] text-white text-xs font-bold shadow-md active:scale-95 transition-all cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-200" />
+                    <span>{isEn ? 'Begin 1-Minute Sensory Grounding' : '开启 1 分钟 5-4-3-2-1 丰盛感官锚定'}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  
+                  {/* Timer & Controls Header */}
+                  <div className="flex items-center justify-between pb-3 border-b border-[#8e6d72]/15">
+                    <div className="flex items-center gap-2 text-left">
+                      <span className="w-2.5 h-2.5 rounded-full bg-teal-500 animate-ping" />
+                      <div>
+                        <span className="text-xs font-bold text-[#8e6d72] block">
+                          {groundingMode === 'quick-15s' ? '⚡ 15秒 极速心智清空' : groundingMode === 'sensory-1m' ? '🌟 1分钟 5-4-3-2-1 感官锚定' : '🧘 3分钟 “此时此刻” 深度观照'}
+                        </span>
+                        <span className="text-[10px] text-[#8e6d72]/70 font-mono">
+                          剩余时间：{groundingTimeRemaining} 秒
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={stopGroundingSession}
+                      className="px-3 py-1 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10.5px] font-bold transition-colors cursor-pointer"
+                    >
+                      结束练习
+                    </button>
+                  </div>
+
+                  {/* MODE A: 5-4-3-2-1 SENSORY CHECKLIST */}
+                  {groundingMode === 'sensory-1m' && (
+                    <div className="space-y-3 text-left">
+                      <p className="text-xs text-[#8e6d72] font-semibold text-center pb-1">
+                        {isEn ? 'Tap each sensory anchor as you notice it in your surroundings:' : '请跟随指引，每在当下觉察到一个感官维度，轻点将其点亮：'}
+                      </p>
+
+                      <div className="grid grid-cols-1 gap-2.5 max-w-xl mx-auto">
+                        {[
+                          { step: 5, icon: Eye, title: '5 种看见的颜色与光影 (Vision)', desc: '环顾四周，看见5种不同质感、充满生机的光影与色彩。', color: 'text-amber-600' },
+                          { step: 4, icon: Hand, title: '4 处触手可及的身体支撑 (Touch)', desc: '感受座椅的承托、脚掌贴合地面、衣物贴着皮肤的微温。', color: 'text-teal-600' },
+                          { step: 3, icon: Ear, title: '3 种背景中若隐若现的声音 (Hearing)', desc: '倾听微风、环境音、以及所有声音背后的广阔寂静。', color: 'text-sky-600' },
+                          { step: 2, icon: Wind, title: '2 次悠长舒展的纯净深呼吸 (Breath)', desc: '深吸气感受清凉空气涌入腹部，长呼气释放所有紧绷。', color: 'text-rose-600' },
+                          { step: 1, icon: Heart, title: '1 份如如不动的本我觉知 (I-AM Presence)', desc: '安住在“我-是”的纯粹空间中。此时此地，你本自圆满。', color: 'text-purple-600' },
+                        ].map((item, idx) => {
+                          const isDone = sensoryChecklist[item.step];
+                          return (
+                            <button
+                              key={item.step}
+                              type="button"
+                              onClick={() => toggleSensoryItem(item.step)}
+                              className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 text-left ${
+                                isDone
+                                  ? 'bg-teal-50/90 border-teal-300 shadow-sm'
+                                  : 'bg-white/80 border-[#8e6d72]/15 hover:border-[#8e6d72]/30'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                                  isDone ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-500'
+                                }`}>
+                                  <item.icon className="w-4 h-4" />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <span className={`text-xs font-bold block ${isDone ? 'text-teal-900' : 'text-[#4a2e31]'}`}>
+                                    {item.title}
+                                  </span>
+                                  <span className="text-[10px] text-[#6d5b5e] block">
+                                    {item.desc}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 ${
+                                isDone ? 'bg-teal-600 border-teal-600 text-white' : 'border-gray-300 text-transparent'
+                              }`}>
+                                <Check className="w-3.5 h-3.5" />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MODE B: 3-MINUTE PURE PRESENCE */}
+                  {groundingMode === 'presence-3m' && (
+                    <div className="space-y-6 max-w-lg mx-auto py-2">
+                      {/* Synchronized Pulsing Breath Circle */}
+                      <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
+                        <motion.div
+                          animate={{
+                            scale: presenceBreathPhase === 'inhale' ? 1.25 : 0.85,
+                            opacity: presenceBreathPhase === 'inhale' ? 0.9 : 0.4
+                          }}
+                          transition={{ duration: 5.5, ease: "easeInOut" }}
+                          className="absolute inset-0 rounded-full bg-gradient-to-tr from-teal-300/40 via-amber-200/50 to-pink-300/40 blur-xl"
+                        />
+                        <div className={`w-28 h-28 rounded-full border-2 flex flex-col items-center justify-center z-10 transition-all duration-1000 ${
+                          presenceBreathPhase === 'inhale'
+                            ? 'border-teal-400 bg-teal-50/80 shadow-teal-200/50'
+                            : 'border-amber-400 bg-amber-50/80 shadow-amber-200/50'
+                        }`}>
+                          <span className="text-xs font-serif font-bold text-[#8e6d72] tracking-wider block">
+                            {presenceBreathPhase === 'inhale' ? '吸气 · 连系源头' : '呼气 · 安住当下'}
+                          </span>
+                          <span className="text-[9px] font-mono text-[#8e6d72]/60 mt-0.5">
+                            {presenceBreathPhase === 'inhale' ? 'Inhale Peace' : 'Exhale Striving'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Rotating Presence Quote */}
+                      <div className="p-4 rounded-2xl bg-teal-50/50 border border-teal-100 space-y-1">
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-teal-800 block">
+                          《活在当下》杨定一原著心印指引
+                        </span>
+                        <p className="text-xs font-serif font-bold text-[#8e6d72] leading-relaxed">
+                          {PRESENCE_QUOTES[presenceQuoteIdx][language]}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MODE C: 15-SECOND INSTANT RESET */}
+                  {groundingMode === 'quick-15s' && (
+                    <div className="space-y-4 max-w-md mx-auto py-2">
+                      <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto text-xl font-bold font-mono shadow-inner animate-pulse">
+                        {groundingTimeRemaining}s
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-xs font-bold text-[#8e6d72] block">
+                          {groundingTimeRemaining > 10
+                            ? '👁️ 第 1 步：睁开眼，观照周围最柔和的一束光'
+                            : groundingTimeRemaining > 5
+                            ? '✋ 第 2 步：闭上眼，感受拂过肌肤的温热呼吸'
+                            : '💖 第 3 步：深深呼气，安住在最纯粹的“我-是”'}
+                        </span>
+                        <p className="text-[11px] text-[#6d5b5e] leading-relaxed italic">
+                          “放下对过去的所有纠结，放下对未来的所有担忧。此时此刻，您与宇宙的大丰盛完全同频。”
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB 3: GRATITUDE RESONANCE ("谢谢"练习)
+        ======================================================== */}
         {activeTab === 'gratitude' && (
           <div className="space-y-5 animate-fadeIn" id="tab-gratitude-resonance">
             <div className="p-4 rounded-2xl bg-amber-50/40 border border-amber-100/60 leading-relaxed text-xs text-[#6d5b5e]">
@@ -278,13 +1020,12 @@ export default function AbundanceWisdomSpace({ language = 'zh', onSpeak }: Abund
                 </p>
               </div>
 
-              {/* The big elegant chanting button with live floating bubbles */}
+              {/* Chanting button with live floating bubbles */}
               <button
                 onClick={handleGratitudeChant}
-                className="relative py-6 px-10 rounded-full bg-gradient-to-r from-[#8e6d72] to-[#b49196] hover:from-[#7e5d62] hover:to-[#a48186] text-white font-serif font-bold text-lg tracking-widest shadow-xl shadow-pink-100/30 active:scale-95 transition-all duration-150 overflow-hidden shrink-0 group"
+                className="relative py-6 px-10 rounded-full bg-gradient-to-r from-[#8e6d72] to-[#b49196] hover:from-[#7e5d62] hover:to-[#a48186] text-white font-serif font-bold text-lg tracking-widest shadow-xl shadow-pink-100/30 active:scale-95 transition-all duration-150 overflow-hidden shrink-0 group cursor-pointer"
                 id="chant-thank-you-btn"
               >
-                {/* Bubble container inside button boundaries */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                   {bubbles.map(b => (
                     <motion.span
@@ -305,14 +1046,12 @@ export default function AbundanceWisdomSpace({ language = 'zh', onSpeak }: Abund
                 </span>
               </button>
             </div>
-            
-            <p className="text-[10px] italic opacity-60 text-center">
-              {isEn ? 'Tip: Click the button to emit an organic Tibetan bowl chime and chant along quietly.' : '提示：轻点按钮，将激发出真实的颂钵磬音声波，闭上双眼，在心中一同默念“谢谢你”。'}
-            </p>
           </div>
         )}
 
-        {/* TAB 2: TOTAL SURRENDER (全然臣服) */}
+        {/* ========================================================
+            TAB 4: TOTAL SURRENDER (全然臣服)
+        ======================================================== */}
         {activeTab === 'surrender' && (
           <div className="space-y-5 animate-fadeIn" id="tab-total-surrender">
             <div className="p-4 rounded-2xl bg-[#8e6d72]/5 border border-[#8e6d72]/10 leading-relaxed text-xs text-[#6d5b5e]">
@@ -364,7 +1103,7 @@ export default function AbundanceWisdomSpace({ language = 'zh', onSpeak }: Abund
                     <button
                       type="submit"
                       disabled={isDissolving || !worryInput.trim()}
-                      className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#8e6d72] hover:bg-[#7e5d62] text-white text-xs font-bold font-sans transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#8e6d72] hover:bg-[#7e5d62] text-white text-xs font-bold font-sans transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                       id="surrender-action-btn"
                     >
                       <Send className="w-3.5 h-3.5" />
@@ -395,7 +1134,6 @@ export default function AbundanceWisdomSpace({ language = 'zh', onSpeak }: Abund
                     </p>
                   </div>
 
-                  {/* Abundance alignment card */}
                   <div className="p-4 rounded-xl bg-white/80 border border-white max-w-md mx-auto">
                     <blockquote className="font-serif italic text-sm text-[#8e6d72] leading-relaxed">
                       {isEn
@@ -405,8 +1143,8 @@ export default function AbundanceWisdomSpace({ language = 'zh', onSpeak }: Abund
                   </div>
 
                   <button
-                    onClick={handleResetSurrender}
-                    className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-[#8e6d72] hover:text-[#7e5d62] underline"
+                    onClick={() => setSurrenderedState(false)}
+                    className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-[#8e6d72] hover:text-[#7e5d62] underline cursor-pointer"
                   >
                     <RefreshCw className="w-3 h-3" />
                     <span>{isEn ? 'Surrender Another Worry' : '再次写下抗拒，解脱心念'}</span>
@@ -414,239 +1152,6 @@ export default function AbundanceWisdomSpace({ language = 'zh', onSpeak }: Abund
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        )}
-
-        {/* TAB 3: MINDSET ALCHEMY (唯识转念) */}
-        {activeTab === 'alchemy' && (
-          <div className="space-y-5 animate-fadeIn" id="tab-mindset-alchemy">
-            <div className="p-4 rounded-2xl bg-white/40 border border-white/50 leading-relaxed text-xs text-[#6d5b5e]">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-amber-600 block mb-1">
-                {isEn ? 'Alchemize Your Scarcity Beliefs' : '唯识转念炼金术 • Consciousness Transmutation'}
-              </span>
-              <p className="opacity-80">
-                {isEn
-                  ? 'Dr. Jan notes that scarcity is merely a filter of the anxious ego. Click "Alchemize" on any limiting card to flip it over and activate the expansive consciousness of Abundance.'
-                  : '杨定一博士在《丰盛》中强调：匮乏只是小我编织的局限幻象。点击任一匮乏卡片背后的“启动转念”，以3D晶体翻转共鸣，注入生命的真实丰盛意识。'}
-              </p>
-            </div>
-
-            {/* Mindset cards grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {MINDSET_CARDS.map((card) => {
-                const isFlipped = flippedCards[card.id];
-                const isDone = alchemyCompleted[card.id];
-                
-                return (
-                  <div
-                    key={card.id}
-                    className="relative min-h-[140px] perspective-1000 group cursor-pointer"
-                    onClick={() => !isFlipped && handleAlchemizeCard(card.id)}
-                  >
-                    <motion.div
-                      className="w-full h-full duration-500 preserve-3d"
-                      animate={{ rotateY: isFlipped ? 180 : 0 }}
-                      transition={{ duration: 0.6, ease: "easeInOut" }}
-                    >
-                      {/* FRONT CARD (Scarcity / 匮乏) */}
-                      <div className="absolute inset-0 backface-hidden p-4 rounded-2xl bg-white/60 border border-[#8e6d72]/10 flex flex-col justify-between hover:border-[#8e6d72]/40 transition-colors shadow-sm">
-                        <div className="space-y-1.5">
-                          <span className="text-[9px] uppercase font-mono tracking-wider font-bold text-[#b49196] block">
-                            {isEn ? 'SCARCITY FILTER' : '❌ 匮乏念头 (Scarcity Belief)'}
-                          </span>
-                          <p className="text-xs text-[#6d5b5e] font-sans leading-relaxed">
-                            {isEn ? card.scarcityEn : card.scarcityZh}
-                          </p>
-                        </div>
-                        
-                        <div className="flex justify-end">
-                          <span className="inline-flex items-center gap-1.5 text-[9.5px] font-bold text-[#8e6d72] bg-[#8e6d72]/10 py-1 px-2.5 rounded-full hover:bg-[#8e6d72] hover:text-white transition-all">
-                            <span>✨ {isEn ? 'Alchemize' : '启动转念'}</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* BACK CARD (Abundance / 丰盛) */}
-                      <div className="absolute inset-0 backface-hidden rotate-y-180 p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-[#fff8f0] border border-amber-200/60 flex flex-col justify-between shadow-inner">
-                        <div className="space-y-1.5">
-                          <span className="text-[9px] uppercase font-mono tracking-wider font-bold text-amber-600 block">
-                            {isEn ? 'ABUNDANCE REALITY' : '👑 丰盛实相 (Abundance Reality)'}
-                          </span>
-                          <p className="text-xs text-[#8e6d72] font-serif font-semibold leading-relaxed">
-                            {isEn ? card.abundanceEn : card.abundanceZh}
-                          </p>
-                        </div>
-
-                        <div className="text-[9.5px] italic text-[#b49196] border-t border-amber-100 pt-1.5">
-                          {isEn ? card.quoteEn : card.quoteZh}
-                        </div>
-                      </div>
-                    </motion.div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Overall progress indicator */}
-            <div className="flex items-center justify-between text-[10px] font-bold text-[#8e6d72] bg-[#8e6d72]/5 px-3 py-2 rounded-xl">
-              <span>{isEn ? 'TRANSITION COMPLETENESS' : '丰盛转念心智蜕变进度'}</span>
-              <span className="font-mono bg-white px-2 py-0.5 rounded border border-[#8e6d72]/15">
-                {Object.keys(alchemyCompleted).length} / {MINDSET_CARDS.length}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: HERE & NOW GROUNDING (活在当下) */}
-        {activeTab === 'now' && (
-          <div className="space-y-5 animate-fadeIn" id="tab-here-and-now">
-            <div className="p-4 rounded-2xl bg-[#8e6d72]/5 border border-[#8e6d72]/10 leading-relaxed text-xs text-[#6d5b5e]">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-[#8e6d72] block mb-1">
-                {isEn ? 'The Eternal Present Moment' : '瞬间回到当下 • Anchor in the "Here and Now"'}
-              </span>
-              <p className="opacity-80">
-                {isEn
-                  ? 'Abundance has no future or past. It is only accessible in the "Here and Now." Follow this rapid 3-step conscious grounding practice to dissolve anxious expectations.'
-                  : '杨定一博士强调：丰盛从来不属于未来，也不属于过去。生命唯一的丰盛就在“这里，现在”。点击下方启动锚定，在15秒内快速沉淀心智。'}
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-white/60 border border-white/80 text-center space-y-6">
-              {!isGroundingActive && groundingStep === 0 ? (
-                <div className="py-4 space-y-4">
-                  <span className="text-3xl block animate-bounce" style={{ animationDuration: '3s' }}>🧘</span>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-[#8e6d72]">
-                      {isEn ? 'Start 15-Second Grounding Sequence' : '开启 15 秒当下意识锚定'}
-                    </h4>
-                    <p className="text-[10.5px] text-[#6d5b5e] max-w-sm mx-auto leading-relaxed">
-                      {isEn
-                        ? 'Follow three visual sensory alignments coupled with gentle breathing to instantly shift your state.'
-                        : '跟随着精美视觉引导、温和声波，以及三次呼吸，瞬间将漂泊的小我心智锁死在此时此刻。'}
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={startGrounding}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#8e6d72] hover:bg-[#7e5d62] text-white text-xs font-bold font-sans transition-all shadow-md active:scale-95"
-                    id="start-grounding-btn"
-                  >
-                    <Sparkles className="w-4 h-4 text-amber-200" />
-                    <span>{isEn ? 'Begin Alignment' : '开始锚定对齐'}</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="py-2 space-y-5">
-                  {/* Step Indicators */}
-                  <div className="flex justify-center items-center gap-1.5">
-                    {[1, 2, 3].map((step) => (
-                      <div
-                        key={step}
-                        className={`h-1.5 rounded-full transition-all duration-500 ${
-                          groundingStep === step
-                            ? 'w-10 bg-amber-500'
-                            : groundingStep > step
-                              ? 'w-3 bg-[#8e6d72]'
-                              : 'w-3 bg-gray-200'
-                        }`}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Breathing & Visual instruction container */}
-                  <div className="min-h-[100px] flex flex-col justify-center items-center px-4">
-                    <AnimatePresence mode="wait">
-                      {groundingStep === 1 && (
-                        <motion.div
-                          key="step1"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="space-y-2"
-                        >
-                          <span className="text-xs uppercase tracking-widest text-[#8e6d72] font-bold block">
-                            {isEn ? 'STEP 1: SIGHT' : '第 1 步：眼睛观照 (Sight)'}
-                          </span>
-                          <blockquote className="font-serif italic text-sm text-[#8e6d72] font-semibold leading-relaxed">
-                            {isEn
-                              ? '“Open your eyes gently. Observe 3 colors in your screen or room representing the sheer abundance of life.”'
-                              : '“温柔睁眼。环顾或凝视屏幕，观察周围3种闪烁着微光、代表着生命繁茂丰厚色彩的物体。”'}
-                          </blockquote>
-                        </motion.div>
-                      )}
-
-                      {groundingStep === 2 && (
-                        <motion.div
-                          key="step2"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="space-y-2"
-                        >
-                          <span className="text-xs uppercase tracking-widest text-amber-600 font-bold block">
-                            {isEn ? 'STEP 2: TOUCH' : '第 2 步：触觉感应 (Touch)'}
-                          </span>
-                          <blockquote className="font-serif italic text-sm text-[#8e6d72] font-semibold leading-relaxed">
-                            {isEn
-                              ? '“Close your eyes. Feel the temperature of the air touching your skin—the universe’s unconditional support.”'
-                              : '“轻轻闭眼。感受拂过皮肤的微风或空气的温度——那是宇宙对你无条件的包容与支撑。”'}
-                          </blockquote>
-                        </motion.div>
-                      )}
-
-                      {groundingStep === 3 && (
-                        <motion.div
-                          key="step3"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="space-y-2"
-                        >
-                          <span className="text-xs uppercase tracking-widest text-purple-600 font-bold block">
-                            {isEn ? 'STEP 3: EMBODIMENT' : '第 3 步：安住“我-是” (Embodiment)'}
-                          </span>
-                          <blockquote className="font-serif italic text-sm text-[#8e6d72] font-semibold leading-relaxed">
-                            {isEn
-                              ? '“Listen to the background silence. Rest in the pure state of ‘I-AM’. You already possess everything.”'
-                              : '“倾听喧嚣背后的静默。深深呼气，安住在最纯粹的‘我-是’空间里。此时此地，你早已圆满。”'}
-                          </blockquote>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Giant circular breathing countdown */}
-                  <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
-                    <svg className="absolute inset-0 w-full h-full transform -rotate-90">
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="28"
-                        className="stroke-gray-100 fill-none"
-                        strokeWidth="3"
-                      />
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="28"
-                        className="stroke-amber-500 fill-none transition-all duration-1000"
-                        strokeWidth="3.5"
-                        strokeDasharray={175.92}
-                        strokeDashoffset={175.92 - (175.92 * groundingTimer) / 5}
-                      />
-                    </svg>
-                    <span className="text-base font-bold font-mono text-[#8e6d72]">
-                      {groundingTimer}s
-                    </span>
-                  </div>
-
-                  <p className="text-[10px] text-[#b49196] font-medium italic">
-                    {isEn ? 'Breath naturally and deeply...' : '自然、深沉、悠长地呼吸...'}
-                  </p>
-                </div>
-              )}
-            </div>
           </div>
         )}
 
