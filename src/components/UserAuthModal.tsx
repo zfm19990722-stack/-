@@ -70,6 +70,12 @@ export default function UserAuthModal({
       console.error('Google Sign In Error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
         setErrorMsg(isEn ? 'Sign in popup was closed.' : '登录弹窗已关闭');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setErrorMsg(
+          isEn
+            ? 'Google Sign-in is not enabled in Firebase Console. Please enable "Google" under Authentication > Sign-in method.'
+            : 'Firebase 控制台尚未启用「Google」登录提供商。请前往 Firebase Console (Authentication -> Sign-in method) 启用 Google 登录。'
+        );
       } else {
         setErrorMsg(err.message || (isEn ? 'Google sign in failed.' : 'Google 登录失败，请重试'));
       }
@@ -118,6 +124,10 @@ export default function UserAuthModal({
       let message = err.message;
       if (err.code === 'auth/invalid-email') {
         message = isEn ? 'Invalid email format.' : '邮箱格式不正确';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        message = isEn
+          ? 'Email/Password sign-in is not enabled in Firebase. Please use "Continue with Google" or enable "Email/Password" in Firebase Console (Authentication > Sign-in method).'
+          : 'Firebase 后台尚未启用「邮箱/密码」登录方式。推荐点击上方「Google 账号一键登录」，或前往 Firebase 控制台 (Authentication -> Sign-in method) 开启「Email/Password」。';
       } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         message = isEn ? 'Incorrect email or password.' : '邮箱或密码不匹配，请检查后再试';
       } else if (err.code === 'auth/email-already-in-use') {
